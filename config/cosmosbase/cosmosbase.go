@@ -94,9 +94,9 @@ type telemetrySchema struct {
 // values for every mode: what a node labels its metrics with is an operator's decision about their
 // monitoring, and no node mode implies one.
 func telemetryBaseline(registry.Mode) any {
-	live := srvconfig.DefaultConfig().Telemetry
-	labels := make([]any, 0, len(live.GlobalLabels))
-	for _, pair := range live.GlobalLabels {
+	defaults := srvconfig.DefaultConfig().Telemetry
+	labels := make([]any, 0, len(defaults.GlobalLabels))
+	for _, pair := range defaults.GlobalLabels {
 		row := make([]any, 0, len(pair))
 		for _, item := range pair {
 			row = append(row, item)
@@ -104,12 +104,12 @@ func telemetryBaseline(registry.Mode) any {
 		labels = append(labels, row)
 	}
 	return telemetrySchema{
-		ServiceName:             live.ServiceName,
-		Enabled:                 live.Enabled,
-		EnableHostname:          live.EnableHostname,
-		EnableHostnameLabel:     live.EnableHostnameLabel,
-		EnableServiceLabel:      live.EnableServiceLabel,
-		PrometheusRetentionTime: live.PrometheusRetentionTime,
+		ServiceName:             defaults.ServiceName,
+		Enabled:                 defaults.Enabled,
+		EnableHostname:          defaults.EnableHostname,
+		EnableHostnameLabel:     defaults.EnableHostnameLabel,
+		EnableServiceLabel:      defaults.EnableServiceLabel,
+		PrometheusRetentionTime: defaults.PrometheusRetentionTime,
 		GlobalLabels:            labels,
 	}
 }
@@ -130,9 +130,11 @@ func grpcBaseline(registry.Mode) any { return srvconfig.DefaultConfig().GRPC }
 //
 // The upstream defaults, which is what seid init writes into app.toml. Every one of these keys is read
 // with a casting getter, and an absent key casts to zero, so a node whose app.toml predates one of them
-// runs the zero rather than the default beside it. testdata/base.absent.golden records which keys that is;
-// five of the thirteen have a non-zero default, and the pruning strategy is the one that matters most,
-// since an empty strategy is not a strategy.
+// runs the zero rather than the default beside it, and the DeclareZeroWhenAbsent call above names which.
+// Five of the thirteen have a non-zero default, and the pruning strategy is the one that matters most,
+// since an empty strategy is not a strategy. Nine of these keys are also bound to a start flag, whose
+// default the resolution reaches before the lookup comes back empty, so on a node running the start
+// command the zero never arrives for them.
 //
 // The same values for every mode. How much history a node keeps and how many workers it runs are
 // decisions about disk and CPU that an operator writes down.
