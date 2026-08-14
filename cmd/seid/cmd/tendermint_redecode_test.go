@@ -5,8 +5,10 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"regexp"
 	"sort"
 	"testing"
+	"time"
 
 	"go.opentelemetry.io/otel/sdk/trace"
 
@@ -24,9 +26,20 @@ import (
 // Tendermint key would land in the source after the struct it would populate was already built, and
 // nothing decodes a second time.
 //
-// Decoding a second time is the cheapest way out, and these tests are what say whether it is safe. They
-// are here rather than in a design note because the answer is a property of viper, mapstructure and the
+// Decoding a second time is the cheapest way out, and these tests are what say how far it goes. They are
+// here rather than in a design note because the answer is a property of viper, mapstructure and the
 // upstream handler together, and none of those three is ours.
+//
+// The answer is that decoding the whole source a second time is not safe, and the test below that fails
+// is the reason. A second decode does not see what the first saw: the handler merges app.toml into the
+// same source afterwards, and its bindFlags pass copies configuration values into flags as text and marks
+// them changed, which viper then ranks above the file. So a value that reached the first decode as a
+// number reaches the second as a string, and a duration written as a bare number is rejected. Every
+// property below holds; none of them says the whole source may be decoded again.
+//
+// What that leaves is decoding the resolved keys alone, out of a source built for the purpose, into a
+// copy that is published only once it decodes and validates. These tests are what that design has to keep
+// holding.
 
 // bootWithConfigToml boots the way bootWithSeiToml does, with a config.toml already on disk.
 //
@@ -224,5 +237,66 @@ func TestAnInstalledTendermintKeyReachesItsSettingOnASecondDecode(t *testing.T) 
 		}
 		t.Errorf("installing one key also moved %s. A declared key has to reach its own setting and "+
 			"nothing else", path)
+	}
+}
+
+// TestASecondDecodeOfTheWholeSourceCanFailWhereTheFirstSucceeded is the limit on all of the above.
+//
+// The three properties above are measured against a configuration this repository wrote. This one is
+// measured against a configuration an operator could have written, and it fails: a duration written as a
+// bare number decodes on the first pass and is refused on the second.
+//
+// The cause is that the second decode reads a different source. The handler's bindFlags pass copies each
+// configuration value into its flag as text and marks the flag changed, and viper ranks a changed flag
+// above the file, so int64(7000000000) arrives at the second decode as "7000000000". The duration hook
+// takes a number or a unit-bearing string and refuses a unit-less one.
+//
+// mapstructure gathers errors and keeps going, so a failure here leaves the struct partly written. That is
+// what rules out decoding the whole source in place: there is no result to publish and no way back to the
+// one the node had.
+func TestASecondDecodeOfTheWholeSourceCanFailWhereTheFirstSucceeded(t *testing.T) {
+	configtest.Isolate(t)
+	home := configtest.NewHome(t)
+	dir := filepath.Join(home.Root, "config")
+	if err := os.MkdirAll(dir, 0o750); err != nil {
+		t.Fatalf("mkdir: %v", err)
+	}
+	tmcfg.WriteConfigFile(home.Root, tmcfg.DefaultConfig())
+
+	path := filepath.Join(dir, "config.toml")
+	raw, err := os.ReadFile(path) // #nosec G304 -- a path this test just wrote
+	if err != nil {
+		t.Fatalf("read the fixture: %v", err)
+	}
+	edited := regexp.MustCompile(`(?m)^create-empty-blocks-interval = .*$`).
+		ReplaceAll(raw, []byte("create-empty-blocks-interval = 7000000000"))
+	if string(edited) == string(raw) {
+		t.Fatal("the fixture changed no key, so this measures nothing")
+	}
+	if err := os.WriteFile(path, edited, 0o600); err != nil {
+		t.Fatalf("write the fixture: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "sei.toml"),
+		[]byte("schema_version = 1\nnode_mode = \"validator\"\n"), 0o600); err != nil {
+		t.Fatalf("write sei.toml: %v", err)
+	}
+
+	cmd := server.StartCmd(nil, home.Root, []trace.TracerProviderOption{})
+	if err := cmd.Flags().Set("home", home.Root); err != nil {
+		t.Fatalf("set --home: %v", err)
+	}
+	ctx, err := runManager(t, configmanager.SeiConfigManager{}, cmd)
+	if err != nil {
+		t.Fatalf("the first decode refused a configuration an operator can write: %v", err)
+	}
+	if got := ctx.Config.Consensus.CreateEmptyBlocksInterval; got != 7*time.Second {
+		t.Fatalf("the first decode read the interval as %v, want 7s. The fixture is not exercising the "+
+			"weak decode this is about", got)
+	}
+
+	if err := ctx.Viper.Unmarshal(ctx.Config); err == nil {
+		t.Error("a second decode of the whole source accepted a value the first decode read as a " +
+			"duration. If that is now true, the delivery may decode the whole source in place and this " +
+			"test should be replaced by one that says so")
 	}
 }
