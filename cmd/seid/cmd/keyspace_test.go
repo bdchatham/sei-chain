@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/sei-protocol/sei-chain/config/sections"
+	"github.com/sei-protocol/sei-chain/config/keyspace"
 )
 
 // TestThisBinarySeesEverySectionItDeclares is what makes the registration import load-bearing.
@@ -14,13 +14,10 @@ import (
 // unrelated reason; dropping that use would have removed their keys from every diagnostic and from
 // what a booting node installs, and nothing would have failed.
 func TestThisBinarySeesEverySectionItDeclares(t *testing.T) {
-	if missing := sections.Missing(); len(missing) > 0 {
-		t.Fatalf("these declared sections are absent from this binary: %s\n\nTheir keys resolve through "+
-			"the machinery that answered them before the registry existed, which reports nothing",
-			strings.Join(missing, ", "))
-	}
-	if unexpected := sections.Unexpected(); len(unexpected) > 0 {
-		t.Fatalf("these sections are registered and not named in config/sections: %s\n\nNothing would "+
-			"notice one of them leaving again", strings.Join(unexpected, ", "))
+	if drift := keyspace.Drift(); len(drift) > 0 {
+		t.Fatalf("the key space this binary registers is not the one config/keyspace names:\n  %s\n\n"+
+			"A section named there and not registered has its keys resolving through the machinery that "+
+			"answered them before the registry existed, which reports nothing. One registered and not "+
+			"named there is one nothing would notice leaving again", strings.Join(drift, "\n  "))
 	}
 }

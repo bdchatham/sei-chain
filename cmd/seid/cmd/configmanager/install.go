@@ -16,7 +16,7 @@ import (
 	"github.com/sei-protocol/sei-chain/sei-cosmos/server"
 
 	// Every section this binary declares, so an installed value covers the whole key space.
-	_ "github.com/sei-protocol/sei-chain/config/sections"
+	_ "github.com/sei-protocol/sei-chain/config/keyspace"
 )
 
 // installResolved puts the values sei.toml resolves into the source the boot just built.

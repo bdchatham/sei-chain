@@ -260,7 +260,7 @@ func holdsString(keys []string, want string) bool {
 // the recording rather than to weaken this.
 //
 // Scoped to the sections this package's test binary registers. A section registers when its owning package
-// is imported, and some owners are reached only through config/sections, which this package does not
+// is imported, and some owners are reached only through config/keyspace, which this package does not
 // import, so their keys are absent from the count below. TestEveryDeclaredKeyIsReadBySomething in
 // cmd/seid/cmd is the same check over every section a binary declares.
 func TestEveryDeclaredKeyIsOneTheNodeActuallyReads(t *testing.T) {

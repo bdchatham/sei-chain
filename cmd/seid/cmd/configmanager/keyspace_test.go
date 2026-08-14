@@ -8,8 +8,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/sei-protocol/sei-chain/config/keyspace"
 	"github.com/sei-protocol/sei-chain/config/registry"
-	"github.com/sei-protocol/sei-chain/config/sections"
 	"github.com/sei-protocol/sei-chain/sei-cosmos/client/flags"
 	"github.com/sei-protocol/sei-chain/sei-cosmos/server"
 	serverconfig "github.com/sei-protocol/sei-chain/sei-cosmos/server/config"
@@ -24,10 +24,10 @@ import (
 // resolve through the machinery that answered them before. Nothing else in this package would notice,
 // because an undeclared key is delegated by design.
 func TestTheBootSeesEverySectionThisBinaryDeclares(t *testing.T) {
-	if missing := sections.Missing(); len(missing) > 0 {
-		t.Fatalf("these sections are absent from this test binary: %s\n\nTheir values are not installed "+
-			"into a booting node and the delegation that covers them is silent by design",
-			strings.Join(missing, ", "))
+	if drift := keyspace.Drift(); len(drift) > 0 {
+		t.Fatalf("the key space this test binary registers is not the one config/keyspace names:\n  %s"+
+			"\n\nA section missing here has its values never installed into a booting node, and the "+
+			"delegation that covers them is silent by design", strings.Join(drift, "\n  "))
 	}
 }
 
