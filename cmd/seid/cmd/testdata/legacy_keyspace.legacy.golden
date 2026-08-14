@@ -23,9 +23,7 @@ consensus.unsafe-vote-timeout-override
 consensus.wal-file
 db-backend
 db-dir
-eth_replay.eth_replay_contract_state_checks
 genesis-file
-genesis.genesis-stream-file
 hash-vault-disabled-unsafe
 instrumentation.max-open-connections
 instrumentation.prometheus
@@ -116,4 +114,3 @@ statesync.use-local-snapshot
 statesync.use-p2p
 tx-index.indexer
 tx-index.psql-conn
-wasm.lru_size

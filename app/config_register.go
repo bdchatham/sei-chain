@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/sei-protocol/sei-chain/config/registry"
+	srvconfig "github.com/sei-protocol/sei-chain/sei-cosmos/server/config"
 	"github.com/sei-protocol/sei-chain/sei-db/config"
 )
 
@@ -15,16 +16,23 @@ const (
 	StateCommitSectionName     = "state-commit"
 )
 
-// genesisSchema declares the keys the genesis import reader resolves.
+// genesisSchema declares the keys the [genesis] table carries.
 //
-// A schema and not a transport: nothing decodes into it. The type the reader fills is
+// A schema and not a transport: nothing decodes into it. The type the import reader fills is
 // genesistypes.GenesisImportConfig, which carries no mapstructure tags at all, so no key can be
 // derived from it, and it lives in a tree this repository does not change. Declaring the spelling here
 // is what lets the registry name the keys the reader looks up. Nothing keeps the two together by
 // construction, so a test writes a value under each key and asks the reader which setting it reached.
+//
+// Two readers share this table and they do not share every key. ReadGenesisImportConfig resolves
+// stream-import and import-file. srvconfig.GetConfig resolves stream-import and genesis-stream-file,
+// and server.start streams the genesis file named by the second. So genesis-stream-file is declared
+// here, in a sei package, because a table has one section and this is the one that owns it.
 type genesisSchema struct {
 	StreamImport bool   `mapstructure:"stream-import"`
 	ImportFile   string `mapstructure:"import-file"`
+	// GenesisStreamFile is read by srvconfig.GetConfig, not by ReadGenesisImportConfig.
+	GenesisStreamFile string `mapstructure:"genesis-stream-file"`
 }
 
 // Registration puts this package's configuration sections in the registry.
@@ -67,8 +75,9 @@ func lightInvarianceBaseline(registry.Mode) any { return DefaultLightInvarianceC
 // mode implies it.
 func genesisBaseline(registry.Mode) any {
 	return genesisSchema{
-		StreamImport: DefaultGenesisConfig.StreamGenesisImport,
-		ImportFile:   DefaultGenesisConfig.GenesisStreamFile,
+		StreamImport:      DefaultGenesisConfig.StreamGenesisImport,
+		ImportFile:        DefaultGenesisConfig.GenesisStreamFile,
+		GenesisStreamFile: srvconfig.DefaultConfig().Genesis.GenesisStreamFile,
 	}
 }
 

@@ -60,5 +60,23 @@ func TestEveryKeyANodesFilesCarryHasASectionThatOwnsIt(t *testing.T) {
 	}
 
 	// The record name stays a literal. The wiring record reads it from this call's second argument.
-	configtest.CheckLegacyKeysAreDeclared(t, "legacy_keyspace", existing.AllKeys())
+	configtest.CheckLegacyKeysAreDeclared(t, "legacy_keyspace", existing.AllKeys(), inertInTheRenderedFiles)
+}
+
+// inertInTheRenderedFiles are keys a rendered file carries under a spelling no reader looks up.
+//
+// Not remaining work. Declaring one would put a setting in the registry that reaches nothing, and an
+// operator editing it in sei.toml would be as ignored as they are editing it in app.toml today. They are
+// listed rather than left in the count so the number below it means what it says.
+//
+// Each reason names the test that establishes the key is inert, because that is the claim a reader has to
+// be able to check. Every one of these was found and pinned by the characterization suite before this
+// record existed; none of them is a discovery of this check.
+var inertInTheRenderedFiles = map[string]string{
+	"eth_replay.eth_replay_contract_state_checks": "the template prefixes the section name onto the key " +
+		"and the reader looks up eth_replay.contract_state_checks. Pinned by " +
+		"x/evm/replay's TestTemplateKeyIsInert and by its register_internal_test",
+
+	"wasm.lru_size": "rendered as a literal into every app.toml and read by nothing; the field it names " +
+		"exists only to satisfy the template. Pinned by sei-wasmd/x/wasm's TestLruSizeTemplateKeyIsInert",
 }
