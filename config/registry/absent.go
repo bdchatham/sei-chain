@@ -25,7 +25,8 @@ var valueWhenAbsent = map[string]any{}
 //
 // A statement about the reader, not about every node. Where a start flag is bound to one of these keys, the
 // resolution reaches that flag's default before the lookup comes back empty, so the flag's default is what
-// the node runs and the zero never arrives. Nine keys are in that position today.
+// the node runs and the zero never arrives. TestABoundFlagAnswersAheadOfAKeysZero names which keys those
+// are and holds the order that decides it.
 //
 // Declared by the owning package, beside its registration, because whether a read is checked is a fact
 // about that package's reader. A check holds the declaration against the reader, so this cannot drift

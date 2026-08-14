@@ -157,6 +157,15 @@ default:grpc:validator:config.GRPCConfig{Enable:true, Address:"0.0.0.0:9090", Ma
 default:grpc:full:config.GRPCConfig{Enable:true, Address:"0.0.0.0:9090", MaxRecvMsgSize:4194304, MaxOpenConnections:0x3e8, MaxConnectionIdle:300000000000, MaxConnectionAge:0, MaxConnectionAgeGrace:0, KeepaliveTime:7200000000000, KeepaliveTimeout:20000000000, KeepaliveMinTime:300000000000, KeepalivePermitWithoutStream:false}
 default:grpc:seed:config.GRPCConfig{Enable:true, Address:"0.0.0.0:9090", MaxRecvMsgSize:4194304, MaxOpenConnections:0x3e8, MaxConnectionIdle:300000000000, MaxConnectionAge:0, MaxConnectionAgeGrace:0, KeepaliveTime:7200000000000, KeepaliveTimeout:20000000000, KeepaliveMinTime:300000000000, KeepalivePermitWithoutStream:false}
 default:grpc:archive:config.GRPCConfig{Enable:true, Address:"0.0.0.0:9090", MaxRecvMsgSize:4194304, MaxOpenConnections:0x3e8, MaxConnectionIdle:300000000000, MaxConnectionAge:0, MaxConnectionAgeGrace:0, KeepaliveTime:7200000000000, KeepaliveTimeout:20000000000, KeepaliveMinTime:300000000000, KeepalivePermitWithoutStream:false}
+section:grpc-web
+key:grpc-web.address
+key:grpc-web.enable
+key:grpc-web.enable-unsafe-cors
+key:grpc-web.max-open-connections
+default:grpc-web:validator:config.GRPCWebConfig{Enable:true, Address:"0.0.0.0:9091", EnableUnsafeCORS:false, MaxOpenConnections:0x3e8}
+default:grpc-web:full:config.GRPCWebConfig{Enable:true, Address:"0.0.0.0:9091", EnableUnsafeCORS:false, MaxOpenConnections:0x3e8}
+default:grpc-web:seed:config.GRPCWebConfig{Enable:true, Address:"0.0.0.0:9091", EnableUnsafeCORS:false, MaxOpenConnections:0x3e8}
+default:grpc-web:archive:config.GRPCWebConfig{Enable:true, Address:"0.0.0.0:9091", EnableUnsafeCORS:false, MaxOpenConnections:0x3e8}
 section:light_invariance
 key:light_invariance.supply_enabled
 default:light_invariance:validator:app.LightInvarianceConfig{SupplyEnabled:true}
@@ -174,6 +183,17 @@ default:receipt-store:validator:config.ReceiptStoreConfig{DBDirectory:"", Backen
 default:receipt-store:full:config.ReceiptStoreConfig{DBDirectory:"", Backend:"pebbledb", AsyncWriteBuffer:100, KeepRecent:0, PruneIntervalSeconds:600, ExternalPruning:false, EnableReadWriteMetrics:false, LogFilterParallelism:16}
 default:receipt-store:seed:config.ReceiptStoreConfig{DBDirectory:"", Backend:"pebbledb", AsyncWriteBuffer:100, KeepRecent:0, PruneIntervalSeconds:600, ExternalPruning:false, EnableReadWriteMetrics:false, LogFilterParallelism:16}
 default:receipt-store:archive:config.ReceiptStoreConfig{DBDirectory:"", Backend:"pebbledb", AsyncWriteBuffer:100, KeepRecent:0, PruneIntervalSeconds:600, ExternalPruning:false, EnableReadWriteMetrics:false, LogFilterParallelism:16}
+section:rosetta
+key:rosetta.address
+key:rosetta.blockchain
+key:rosetta.enable
+key:rosetta.network
+key:rosetta.offline
+key:rosetta.retries
+default:rosetta:validator:config.RosettaConfig{Address:":8080", Blockchain:"app", Network:"network", Retries:3, Enable:false, Offline:false}
+default:rosetta:full:config.RosettaConfig{Address:":8080", Blockchain:"app", Network:"network", Retries:3, Enable:false, Offline:false}
+default:rosetta:seed:config.RosettaConfig{Address:":8080", Blockchain:"app", Network:"network", Retries:3, Enable:false, Offline:false}
+default:rosetta:archive:config.RosettaConfig{Address:":8080", Blockchain:"app", Network:"network", Retries:3, Enable:false, Offline:false}
 section:state-commit
 key:state-commit.flatkv.enable-read-write-metrics
 key:state-commit.sc-async-commit-buffer
