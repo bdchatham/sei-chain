@@ -1,6 +1,7 @@
 package configcli
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -233,11 +234,7 @@ func doctorCmd(defaultHome string) *cobra.Command {
 			if !diagnosis.Healthy() {
 				// A non-zero exit is what lets an operator gate a deploy on this, and the report above
 				// already names every key, so this adds no second copy of the list.
-				if diagnosis.ModeProblem != "" {
-					return fmt.Errorf("sei.toml does not record a usable node mode")
-				}
-				return fmt.Errorf("%d written setting(s) are not recognized by this binary",
-					len(diagnosis.Unrecognized))
+				return errors.New(diagnosis.WhyUnhealthy())
 			}
 			return nil
 		},
