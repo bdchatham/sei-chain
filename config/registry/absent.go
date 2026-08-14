@@ -18,9 +18,14 @@ var valueWhenAbsent = map[string]any{}
 // reader started from. Some assign straight from the lookup, and then an absent key resolves to what the
 // cast makes of nothing, which is the zero, and the default beside it is lost.
 //
-// The difference decides what a migration writes. A file built for a node that has been running has to
-// carry the value the node runs, and for these keys that is the zero rather than the default. Writing the
-// default instead changes what the node does, which for the state store is a node that stops starting.
+// The difference decides what a migration writes for a key nothing else supplies. A file built for a node
+// that has been running has to carry the value the node runs, and for these keys that is the zero rather
+// than the default. Writing the default instead changes what the node does, which for the state store is a
+// node that stops starting.
+//
+// A statement about the reader, not about every node. Where a start flag is bound to one of these keys, the
+// resolution reaches that flag's default before the lookup comes back empty, so the flag's default is what
+// the node runs and the zero never arrives. Nine keys are in that position today.
 //
 // Declared by the owning package, beside its registration, because whether a read is checked is a fact
 // about that package's reader. A check holds the declaration against the reader, so this cannot drift

@@ -38,8 +38,8 @@ type Step struct {
 //
 // A shipped entry never changes. Every node running it transforms its configuration the same way, and a
 // migration behaving differently in a later release leaves two nodes agreeing on their version and
-// disagreeing on their contents. testdata/chain.golden holds what each one does to its own fixture, so
-// editing a shipped step moves that record.
+// disagreeing on their contents. TestEveryShippedMigrationMatchesItsRecordedResult hashes what each one
+// does to its own fixture, so editing a shipped step moves that hash.
 var migrations = []Migration{
 	{
 		To:      2,
