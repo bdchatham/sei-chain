@@ -132,6 +132,20 @@ var readByTheServerConfigReader = map[string]string{
 		"which setting changes",
 }
 
+// readByOneOfTheSectionsOtherReaders are declared keys read by something other than the application's
+// creation, where the rest of their section is not.
+//
+// Distinct from readByTheServerConfigReader, which exempts a whole section because every one of its keys
+// is read at start time. This is for a table two readers share and split: exempting the section would
+// take the keys the application does read out of the check as well, which is most of the coverage that
+// section has.
+var readByOneOfTheSectionsOtherReaders = map[string]string{
+	"genesis.genesis-stream-file": "srvconfig.GetConfig reads it and sei-cosmos/server/start.go streams " +
+		"the genesis file it names. The other two keys of that table are read by the application's " +
+		"creation, so the section cannot be exempted whole. " +
+		"TestTheDerivedGenesisKeysAreTheKeysItsTwoReadersResolve holds the table against both readers",
+}
+
 // TestEveryDeclaredKeyIsReadBySomething closes the direction the read census cannot.
 //
 // Both directions matter and they fail differently. An unaccounted read is a value that resolves through
@@ -158,6 +172,9 @@ func TestEveryDeclaredKeyIsReadBySomething(t *testing.T) {
 	var unread []string
 	for _, key := range declared {
 		if observed[key] {
+			continue
+		}
+		if _, elsewhere := readByOneOfTheSectionsOtherReaders[key]; elsewhere {
 			continue
 		}
 		unread = append(unread, key)

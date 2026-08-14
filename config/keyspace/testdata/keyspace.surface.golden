@@ -128,12 +128,13 @@ default:evm_query:full:querier.Config{GasLimit:0x493e0}
 default:evm_query:seed:querier.Config{GasLimit:0x493e0}
 default:evm_query:archive:querier.Config{GasLimit:0x493e0}
 section:genesis
+key:genesis.genesis-stream-file
 key:genesis.import-file
 key:genesis.stream-import
-default:genesis:validator:app.genesisSchema{StreamImport:false, ImportFile:""}
-default:genesis:full:app.genesisSchema{StreamImport:false, ImportFile:""}
-default:genesis:seed:app.genesisSchema{StreamImport:false, ImportFile:""}
-default:genesis:archive:app.genesisSchema{StreamImport:false, ImportFile:""}
+default:genesis:validator:app.genesisSchema{StreamImport:false, ImportFile:"", GenesisStreamFile:""}
+default:genesis:full:app.genesisSchema{StreamImport:false, ImportFile:"", GenesisStreamFile:""}
+default:genesis:seed:app.genesisSchema{StreamImport:false, ImportFile:"", GenesisStreamFile:""}
+default:genesis:archive:app.genesisSchema{StreamImport:false, ImportFile:"", GenesisStreamFile:""}
 section:giga_executor
 key:giga_executor.enabled
 key:giga_executor.occ_enabled

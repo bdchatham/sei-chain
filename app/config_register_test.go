@@ -89,10 +89,21 @@ func TestTheGenesisSchemaDescribesTheReaderItStandsInFor(t *testing.T) {
 			flagGenesisStreamImport: true,
 			flagGenesisImportFile:   "/mnt/genesis/stream.json",
 		},
+		Skip: map[string]string{
+			"genesis.genesis-stream-file": "read by srvconfig.GetConfig and consumed by server.start, " +
+				"which streams the genesis file it names. ReadGenesisImportConfig does not look it up, so " +
+				"probing it against this reader would report a key that reaches nothing",
+		},
 	})
 }
 
-func TestTheDerivedGenesisKeysAreTheKeysThisReaderResolves(t *testing.T) {
+// TestTheDerivedGenesisKeysAreTheKeysItsTwoReadersResolve holds the table against both of them.
+//
+// The [genesis] table is shared. This package's reader resolves stream-import and import-file, and
+// srvconfig.GetConfig resolves stream-import and genesis-stream-file. A section covers a table, so it
+// declares the union, and leaving either reader's key out puts an operator's value somewhere nothing
+// looks.
+func TestTheDerivedGenesisKeysAreTheKeysItsTwoReadersResolve(t *testing.T) {
 	section, ok := registry.Lookup(GenesisSectionName)
 	if !ok {
 		t.Fatalf("%s did not register", GenesisSectionName)
@@ -107,8 +118,14 @@ func TestTheDerivedGenesisKeysAreTheKeysThisReaderResolves(t *testing.T) {
 				"value reaches one of those spellings and not the other", live, section.Keys)
 		}
 	}
-	if len(section.Keys) != 2 {
-		t.Errorf("the registry derived %d keys from a two-field schema: %v", len(section.Keys), section.Keys)
+	// srvconfig.GetConfig reads this one, and server.start streams the file it names. It is spelled with
+	// the section name repeated, which is why it reads like a mistake and is not one.
+	if !derived["genesis.genesis-stream-file"] {
+		t.Errorf("the registry derives %v and srvconfig.GetConfig reads genesis.genesis-stream-file. A "+
+			"node streaming its genesis from that file would lose the path on migration", section.Keys)
+	}
+	if len(section.Keys) != 3 {
+		t.Errorf("the registry derived %d keys from a three-field schema: %v", len(section.Keys), section.Keys)
 	}
 }
 
