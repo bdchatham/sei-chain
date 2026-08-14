@@ -74,6 +74,11 @@ func init() {
 		"telemetry.enabled", "telemetry.prometheus-retention-time",
 	)
 
+	// srvconfig.getConcurrencyWorkers reads the machine's processor count, so two nodes on different
+	// hardware resolve different values for a key neither of them wrote.
+	registry.DeclareHostDerived(BaseSectionName, "concurrency-workers",
+		"twice the host's processor count, held between 10 and 128")
+
 	registry.RefuseFromEnvironment(GlobalLabelsKey,
 		"the metric label set is a list of name/value pairs and its reader takes that exact type rather "+
 			"than casting, so no single environment string can supply it. Write it in sei.toml instead")

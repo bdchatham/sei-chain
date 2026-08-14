@@ -2,6 +2,7 @@ package config_test
 
 import (
 	"reflect"
+	"runtime"
 	"testing"
 
 	"github.com/sei-protocol/sei-chain/app/params"
@@ -139,4 +140,36 @@ func TestRegisteringProducedNoDefect(t *testing.T) {
 func TestTheZeroWhenAbsentDeclarationMatchesThisReader(t *testing.T) {
 	configtest.CheckZeroWhenAbsentMatchesTheReader(t, "evm",
 		func(o configtest.AppOpts) (any, error) { return config.ReadConfig(o) })
+}
+
+// TestTheHostDerivedEVMBaselinesMatchThisHostsDerivation holds both host-derived declarations.
+//
+// The record holds a marker for these, so a changed formula moves nothing there. This computes each
+// derivation from the same input the reader uses and requires the baseline to match.
+func TestTheHostDerivedEVMBaselinesMatchThisHostsDerivation(t *testing.T) {
+	resolved, err := registry.Resolve(registry.ModeValidator)
+	if err != nil {
+		t.Fatalf("Resolve: %v", err)
+	}
+
+	for key, want := range map[string]int{
+		"evm.worker_pool_size":                min(64, runtime.NumCPU()*2),
+		"evm.max_concurrent_simulation_calls": runtime.NumCPU(),
+	} {
+		if !registry.HostDerived(key) {
+			t.Errorf("%s is not declared as host-derived, so the record holds this machine's processor "+
+				"count and fails on every other one", key)
+			continue
+		}
+		got, found := resolved.Keys[key]
+		if !found {
+			t.Errorf("%s resolves to nothing", key)
+			continue
+		}
+		if got.Value != want {
+			t.Errorf("%s resolves to %#v and this host's derivation gives %d. Either the formula moved, "+
+				"in which case say so here, or the key stopped being derived and its value belongs in "+
+				"the record", key, got.Value, want)
+		}
+	}
 }
