@@ -69,9 +69,35 @@ type Malformation struct {
 }
 
 // Healthy reports whether the file may be booted from.
-func (d Diagnosis) Healthy() bool {
-	return len(d.Unrecognized) == 0 && len(d.Malformed) == 0 && len(d.Refused) == 0 &&
-		d.ModeProblem == "" && d.ModeConflict == ""
+func (d Diagnosis) Healthy() bool { return d.WhyUnhealthy() == "" }
+
+// WhyUnhealthy names the finding that stops this file being booted from, and is empty when none does.
+//
+// One statement of what unhealthy means, rather than one in Healthy and another wherever an exit is
+// explained. Those drift in a particular way: the exit says whichever category was listed first while
+// the real finding is a different one, so an operator reads "0 written setting(s) are not recognized"
+// and a non-zero status at the same time.
+//
+// Ordered most fundamental first. A file recording no usable mode cannot be resolved for any mode, so
+// nothing below was checked against anything and naming a later finding would be naming a guess.
+//
+// A category added to the halting set needs a case here. Forgetting one makes the file report healthy,
+// which fails a test rather than printing the wrong reason.
+func (d Diagnosis) WhyUnhealthy() string {
+	switch {
+	case d.ModeProblem != "":
+		return "sei.toml does not record a usable node mode"
+	case d.ModeConflict != "":
+		return "sei.toml and config.toml disagree about what kind of node this is"
+	case len(d.Unrecognized) > 0:
+		return fmt.Sprintf("%d written setting(s) are not recognized by this binary", len(d.Unrecognized))
+	case len(d.Malformed) > 0:
+		return fmt.Sprintf("%d written value(s) cannot be read as the setting's declared type",
+			len(d.Malformed))
+	case len(d.Refused) > 0:
+		return fmt.Sprintf("%d section(s) refused the values that resolve for them", len(d.Refused))
+	}
+	return ""
 }
 
 // Doctor checks every written key against what this binary declares.

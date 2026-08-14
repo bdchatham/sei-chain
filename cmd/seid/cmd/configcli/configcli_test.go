@@ -552,3 +552,91 @@ func TestDoctorNamesAVariableTheEnvironmentCannotDeliver(t *testing.T) {
 		t.Errorf("the report does not name the variable, so an operator cannot find it:\n%s", d.Report())
 	}
 }
+
+// TestTheUnhealthyReasonNamesTheFindingThatCausedIt is what an operator reads on a non-zero exit.
+//
+// Five findings stop a file being booted from and the report above the exit lists every key, so the
+// exit itself has one job: say which of the five it was. It used to name unrecognized keys for four of
+// them, so a file with one malformed value exited non-zero saying that nothing was unrecognized, and
+// the number it printed was zero.
+//
+// Each case is built to trip exactly one finding, because the reason names the first that applies and a
+// fixture tripping two would pass whichever order the cases were written in.
+func TestTheUnhealthyReasonNamesTheFindingThatCausedIt(t *testing.T) {
+	for _, c := range []struct {
+		name     string
+		of       configcli.Diagnosis
+		mentions string
+	}{
+		{
+			name:     "no usable mode",
+			of:       configcli.Diagnosis{ModeProblem: "records no mode"},
+			mentions: "usable node mode",
+		},
+		{
+			name:     "the two files disagree about the node",
+			of:       configcli.Diagnosis{ModeConflict: "validator against seed"},
+			mentions: "disagree about what kind of node",
+		},
+		{
+			name:     "a key no section declares",
+			of:       configcli.Diagnosis{Unrecognized: []string{"probe.nope"}},
+			mentions: "not recognized",
+		},
+		{
+			name:     "a value the declared type cannot read",
+			of:       configcli.Diagnosis{Malformed: []configcli.Malformation{{Key: "probe.workers"}}},
+			mentions: "cannot be read as the setting's declared type",
+		},
+		{
+			name:     "a section refusing its own values",
+			of:       configcli.Diagnosis{Refused: []registry.SectionError{{Section: "probe"}}},
+			mentions: "refused the values that resolve",
+		},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			if c.of.Healthy() {
+				t.Fatalf("this finding reads healthy, so doctor exits zero and a deploy gating on it lets "+
+					"the node through: %+v", c.of)
+			}
+			got := c.of.WhyUnhealthy()
+			if !strings.Contains(got, c.mentions) {
+				t.Errorf("the exit says %q and the finding is %s. An operator reading a non-zero exit is "+
+					"told to look for the wrong thing", got, c.name)
+			}
+		})
+	}
+}
+
+// TestAHealthyDiagnosisGivesNoReason keeps the pair from disagreeing.
+//
+// Healthy is defined as this being empty, so a reason for a healthy file would exit non-zero on a file
+// with nothing wrong with it.
+func TestAHealthyDiagnosisGivesNoReason(t *testing.T) {
+	clean := configcli.Diagnosis{Checked: 12, Mode: "validator"}
+	if !clean.Healthy() {
+		t.Fatal("a diagnosis with no findings reads unhealthy")
+	}
+	if got := clean.WhyUnhealthy(); got != "" {
+		t.Errorf("a healthy diagnosis gives the reason %q, so doctor would exit non-zero on a file with "+
+			"nothing wrong with it", got)
+	}
+}
+
+// TestAWarningOnlyDiagnosisIsHealthy is the line the exit code draws.
+//
+// An experimental key nothing matches, a retired one, an environment variable overriding the file and a
+// variable that does nothing are all worth telling an operator and none of them stops a node. Halting on
+// one would make a deploy gate refuse a boot the node itself allows.
+func TestAWarningOnlyDiagnosisIsHealthy(t *testing.T) {
+	warned := configcli.Diagnosis{
+		UnrecognizedExperimental: []string{"experimental.probe.gone"},
+		Retired:                  []string{"experimental.probe.old"},
+		Overridden:               []configcli.Override{{Key: "probe.workers", Variable: "SEI_PROBE_WORKERS"}},
+		IgnoredVariables:         []configcli.Override{{Key: "telemetry.global-labels"}},
+	}
+	if !warned.Healthy() {
+		t.Errorf("a diagnosis holding only warnings reads unhealthy, so doctor exits non-zero and a "+
+			"deploy gate refuses a boot the node allows: %q", warned.WhyUnhealthy())
+	}
+}

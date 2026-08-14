@@ -660,11 +660,18 @@ func TestDoctorExitsNonZeroOnAValueItCannotRead(t *testing.T) {
 
 	out, err := invoke(t, home, "doctor")
 	if err == nil {
-		t.Errorf("doctor exited zero on a file holding a value it cannot read, so nothing automated "+
+		t.Fatalf("doctor exited zero on a file holding a value it cannot read, so nothing automated "+
 			"can gate on it:\n%s", out)
 	}
 	if !strings.Contains(out, "probe.workers") {
 		t.Errorf("doctor did not name the value it cannot read:\n%s", out)
+	}
+	// The exit says which finding it was, not whichever one is listed first. This file has no
+	// unrecognized keys, so the exit used to read "0 written setting(s) are not recognized" while
+	// exiting non-zero, which tells an operator to go and look for something that is not there.
+	if !strings.Contains(err.Error(), "cannot be read as the setting's declared type") {
+		t.Errorf("doctor exited with %q and the finding is a value it cannot read. That is the one line "+
+			"an operator sees when a deploy gate stops them", err)
 	}
 }
 
