@@ -8,6 +8,7 @@
 
 (package)	CheckExperimentalDeclarations
 experimental	CheckExperimentalGolden
+legacy_keyspace	CheckLegacyKeysAreDeclared
 newapp	CheckObservedKeys
 state-sync	CheckKeyNames
 tendermint	CheckKeyNames

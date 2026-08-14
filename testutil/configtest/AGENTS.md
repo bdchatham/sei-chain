@@ -77,6 +77,7 @@ and `TestGuideListsEveryPrimitive` holds it to the exported surface.
 | `CheckEveryRowHasADiscriminatingSeed` | a row whose every seed would also pass against a reader that never looks its key up | the recorded seed corpus |
 | `CheckSchemaMatchesTheReader` | a section whose keys are declared by a purpose-written struct pairs a key with the wrong setting | the reader itself, by writing a probe value under each key and observing which setting changed |
 | `CheckDeclaredSurface` | a key added, removed, renamed or retyped, or a baseline changed, in any declared section | `testdata/<name>.surface.golden`, every section, key and per-mode baseline as text |
+| `CheckLegacyKeysAreDeclared` | a key an operator's app.toml or config.toml can carry that no section declares, so a migration reads past it and the new file loses a value they chose | `testdata/<name>.legacy.golden`, one line per key, empty when the migration can carry everything |
 | `CheckZeroWhenAbsentMatchesTheReader` | a migration writing a key's default where the node runs its zero, or the reverse | the reader itself, by writing each candidate and requiring the reader's output to be unchanged |
 | `CheckWiring` | one of the calls above is deleted | `testdata/wiring_coverage.txt` |
 | `CheckExperimentalDeclarations` | a declaration whose name or metadata is refused reaches a binary, where it is inert and every read of it silently returns the default | the registry, and each declaration's own `Check` run against its own default |
