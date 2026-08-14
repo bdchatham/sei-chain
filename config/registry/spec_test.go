@@ -967,3 +967,59 @@ func TestRefusingAChannelWithoutAReasonIsItselfRefused(t *testing.T) {
 		t.Error("a refusal carrying a reason was not recorded")
 	}
 }
+
+// SquashedBase stands for the embedded base the upstream configuration types carry.
+type SquashedBase struct {
+	Alpha string `mapstructure:"alpha"`
+}
+
+// TestASquashedFieldPromotesItsKeysToTheEnclosingLevel covers the path the upstream types need.
+//
+// Both sei-cosmos/server/config.Config and sei-tendermint/config.Config embed a BaseConfig tagged
+// ",squash", so a section registering either declares that base's keys at its own level rather than
+// under a segment named for the type. No section registers one of those types yet, which is why this
+// drives the path directly: otherwise squash could stop working and nothing would report it until
+// somebody wrote the section that needs it, and what they would see is a key space missing its
+// node-wide settings.
+//
+// The resolved values are asserted alongside the keys, because deriving the key and reading the value
+// walk the struct separately. A squash honoured by one and not the other declares a key whose baseline
+// resolves to nothing.
+func TestASquashedFieldPromotesItsKeysToTheEnclosingLevel(t *testing.T) {
+	registry.Reset()
+	type section struct {
+		SquashedBase `mapstructure:",squash"`
+		Bravo        int `mapstructure:"bravo"`
+	}
+	registry.RegisterSection("probe", &section{}, func(registry.Mode) any {
+		return section{SquashedBase: SquashedBase{Alpha: "a"}, Bravo: 7}
+	})
+
+	for _, d := range registry.Defects() {
+		t.Fatalf("a section with a squashed base was refused: %v.\n\nThe section does not register at "+
+			"all, so every key it declares silently reads from the legacy path instead", d.Err)
+	}
+	s, ok := registry.Lookup("probe")
+	if !ok {
+		t.Fatal("the section did not register")
+	}
+	if got := strings.Join(s.Keys, ","); got != "probe.alpha,probe.bravo" {
+		t.Errorf("derived %q, want probe.alpha,probe.bravo. A squashed base whose keys gain a segment "+
+			"of their own declares keys no operator's file holds", got)
+	}
+
+	resolved, err := registry.Resolve(registry.ModeFull)
+	if err != nil {
+		t.Fatalf("Resolve: %v", err)
+	}
+	for key, want := range map[string]any{"probe.alpha": "a", "probe.bravo": 7} {
+		got, found := resolved.Keys[key]
+		if !found {
+			t.Errorf("%s resolves to nothing, so its baseline is missing while its key is declared", key)
+			continue
+		}
+		if got.Value != want {
+			t.Errorf("%s resolves to %#v, want %#v", key, got.Value, want)
+		}
+	}
+}

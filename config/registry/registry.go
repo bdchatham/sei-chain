@@ -307,11 +307,11 @@ func walk(t reflect.Type, prefix string, keys *[]string) error {
 			continue
 		}
 
-		tag, squash, skip, err := tagOf(f, prefix)
+		tag, err := tagOf(f, prefix)
 		if err != nil {
 			return err
 		}
-		if skip {
+		if tag.DeclaresNoKey() {
 			continue
 		}
 
@@ -320,9 +320,7 @@ func walk(t reflect.Type, prefix string, keys *[]string) error {
 			ft = ft.Elem()
 		}
 
-		// A squashed field promotes its own fields to this level, which is how a section carries
-		// a shared base without adding a segment.
-		if squash {
+		if tag.Squashed() {
 			if ft.Kind() != reflect.Struct {
 				return fmt.Errorf("%s.%s is squashed but is a %s, not a struct", prefix, f.Name, ft.Kind())
 			}
@@ -332,7 +330,7 @@ func walk(t reflect.Type, prefix string, keys *[]string) error {
 			continue
 		}
 
-		path := join(prefix, tag)
+		path := join(prefix, tag.Segment())
 		if ft.Kind() == reflect.Struct && !isLeaf(ft) {
 			if err := walk(ft, path, keys); err != nil {
 				return err
@@ -352,44 +350,67 @@ func join(prefix, segment string) string {
 	return prefix + "." + segment
 }
 
-// tagOf returns a field's mapstructure name, or reports that the field cannot be addressed.
-func tagOf(f reflect.StructField, prefix string) (name string, squash, skip bool, err error) {
-	tag, ok := f.Tag.Lookup("mapstructure")
+// notFromConfig is the mapstructure name for a field no configuration populates.
+const notFromConfig = "-"
+
+// squashOption is the mapstructure option that promotes a field's own fields to the enclosing level.
+const squashOption = "squash"
+
+// fieldTag is what a field's mapstructure tag says about the key it declares.
+type fieldTag struct {
+	name   string
+	squash bool
+}
+
+// Segment is the key segment this field contributes.
+func (t fieldTag) Segment() string { return t.name }
+
+// Squashed reports whether this field's own keys belong at the enclosing level rather than under a
+// segment of their own. That is how a section carries a shared base without adding one.
+func (t fieldTag) Squashed() bool { return t.squash }
+
+// DeclaresNoKey reports whether no configuration populates this field, so it contributes no key.
+//
+// Treating one as a defect would refuse every struct that carries a value derived somewhere else,
+// which is most of them.
+func (t fieldTag) DeclaresNoKey() bool { return t.name == notFromConfig }
+
+// tagOf reads a field's mapstructure tag, or reports that the field cannot be addressed.
+func tagOf(f reflect.StructField, prefix string) (fieldTag, error) {
+	raw, ok := f.Tag.Lookup("mapstructure")
 	if !ok {
-		return "", false, false, fmt.Errorf("%s.%s has no mapstructure tag; a key derived from a field "+
+		return fieldTag{}, fmt.Errorf("%s.%s has no mapstructure tag; a key derived from a field "+
 			"name is a key no operator writes, which is how ninety-two legacy keys became "+
 			"unreachable through their tags", prefix, f.Name)
 	}
 
-	parts := strings.Split(tag, ",")
-	name = parts[0]
+	parts := strings.Split(raw, ",")
+	tag := fieldTag{name: parts[0]}
 	for _, opt := range parts[1:] {
-		if opt == "squash" {
-			squash = true
+		if opt == squashOption {
+			tag.squash = true
 		}
 	}
-	if squash {
-		if name != "" {
-			return "", false, false, fmt.Errorf("%s.%s is squashed and also names %q; one or the other",
-				prefix, f.Name, name)
+
+	if tag.Squashed() {
+		if tag.name != "" {
+			return fieldTag{}, fmt.Errorf("%s.%s is squashed and also names %q; one or the other",
+				prefix, f.Name, tag.name)
 		}
-		return "", true, false, nil
+		return tag, nil
 	}
-	// A dash is how mapstructure says a field is not populated from configuration at all. Such a field
-	// has no key, so it contributes none, and treating it as a defect would refuse every struct that
-	// carries a value derived somewhere else.
-	if name == "-" {
-		return "", false, true, nil
+	if tag.DeclaresNoKey() {
+		return tag, nil
 	}
-	if name == "" {
-		return "", false, false, fmt.Errorf("%s.%s has an empty mapstructure name", prefix, f.Name)
+	if tag.name == "" {
+		return fieldTag{}, fmt.Errorf("%s.%s has an empty mapstructure name", prefix, f.Name)
 	}
-	if name != strings.ToLower(name) {
-		return "", false, false, fmt.Errorf("%s.%s names %q, which is not lower case; a configuration "+
+	if tag.name != strings.ToLower(tag.name) {
+		return fieldTag{}, fmt.Errorf("%s.%s names %q, which is not lower case; a configuration "+
 			"source enumerates lower-cased, so this key would never match a written one",
-			prefix, f.Name, name)
+			prefix, f.Name, tag.name)
 	}
-	return name, false, false, nil
+	return tag, nil
 }
 
 // isLeaf reports whether a struct type is a value rather than a group of keys.
