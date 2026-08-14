@@ -365,12 +365,19 @@ func homeDir(cmd *cobra.Command, defaultHome string) (string, error) {
 }
 
 // adoptInto builds the file from a node's existing configuration and reports what it did.
+//
+// The one place that assembles all three layers a node resolves from, so a layer cannot be missing
+// from an adoption because a call site forgot it.
 func adoptInto(cmd *cobra.Command, path, home string, mode registry.Mode) error {
-	existing, err := LegacySource(home)
+	files, err := LegacySource(home)
 	if err != nil {
 		return err
 	}
-	adoption, err := Adopt(existing, os.LookupEnv, mode)
+	adoption, err := Adopt(Existing{
+		Files:       files,
+		FlagDefault: StartFlagDefaults(home),
+		LookupEnv:   os.LookupEnv,
+	}, mode)
 	if err != nil {
 		return err
 	}
