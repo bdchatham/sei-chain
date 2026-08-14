@@ -75,9 +75,8 @@ func TestNoExperimentalKeyShadowsLightInvarianceAfterRegistration(t *testing.T) 
 //
 // The schema declares the spelling and genesistypes.GenesisImportConfig holds the values, and nothing
 // in the code connects a schema field to the setting it stands for. This writes a value under each
-// declared key, asks the reader which setting changed, and checks the baseline against what the reader
-// leaves that setting at when nothing is written. A field paired with the wrong setting fails here
-// rather than resolving one operator's value into another's setting.
+// declared key and asks the reader which setting changed. A field paired with the wrong setting fails
+// here rather than resolving one operator's value into another's setting.
 func TestTheGenesisSchemaDescribesTheReaderItStandsInFor(t *testing.T) {
 	// The section name stays a literal here. The wiring record reads it from this call's second
 	// argument, and a constant or a table entry would record every schema check under one placeholder
@@ -142,9 +141,10 @@ func TestNoExperimentalKeyShadowsGenesisAfterRegistration(t *testing.T) {
 // real spelling, and nothing in the code pairs a schema field with the setting it stands for. This
 // writes a value under each declared key and asks the reader which setting changed.
 //
-// The baseline half is recorded rather than asserted, because parseSSConfigs guards none of its reads
-// and so resolves an absent key to zero rather than to the default beside it. See
-// testdata/state-store.absent.golden.
+// What those keys resolve to when nothing supplies them is a separate question, and
+// TestTheStateStoreZeroWhenAbsentDeclarationMatchesItsReader answers it: parseSSConfigs guards none of
+// its reads, so an
+// absent key resolves to zero rather than to the default beside it.
 func TestTheStateStoreSchemaDescribesTheReaderItStandsInFor(t *testing.T) {
 	// The section name stays a literal. The wiring record reads it from this call's second argument.
 	configtest.CheckSchemaMatchesTheReader(t, "state-store", configtest.SchemaCheck{
@@ -247,11 +247,11 @@ func TestNoExperimentalKeyShadowsStateStoreAfterRegistration(t *testing.T) {
 // the keys the reader looks up are flat names on the section, so no derivation from that type produces
 // them. This writes a value under each declared key and asks the reader which setting changed.
 //
-// Two keys need saying out loud, and both come from the write mode being derived rather than stored.
-// The written mode is ignored while automatic mode is on, so probing it without turning that off changes
-// nothing at all; and turning automatic mode off moves the mode along with it. Context supplies the
-// companion for the first and AlsoDerives names the second, so the one-setting rule keeps its meaning
-// for the other eighteen.
+// Two keys are outside what this check can describe, and both because the write mode is derived rather
+// than stored. The reader computes it from the mode key and the automatic-mode key together, so the
+// written mode is ignored while automatic mode is on and probing it alone changes nothing, while
+// turning automatic mode off moves the mode along with it. Neither reaches exactly one setting.
+// FuzzSCWriteMode covers the pair, and the one-setting rule keeps its meaning for the other eighteen.
 func TestTheStateCommitSchemaDescribesTheReaderItStandsInFor(t *testing.T) {
 	// The section name stays a literal. The wiring record reads it from this call's second argument.
 	configtest.CheckSchemaMatchesTheReader(t, "state-commit", configtest.SchemaCheck{
@@ -271,8 +271,6 @@ func TestTheStateCommitSchemaDescribesTheReaderItStandsInFor(t *testing.T) {
 			FlagSCHistoricalProofMaxInFlight: 8,
 			FlagSCHistoricalProofRateLimit:   12.5,
 			FlagSCHistoricalProofBurst:       6,
-			FlagSCWriteMode:                  "flatkv_only",
-			FlagSCWriteModeEnableAuto:        false,
 			FlagSCHashLoggerEnable:           false,
 			FlagSCHashLoggerDirectory:        "/mnt/hashlog",
 			FlagSCHashLoggerBlocksToRetain:   uint(500),
@@ -280,15 +278,13 @@ func TestTheStateCommitSchemaDescribesTheReaderItStandsInFor(t *testing.T) {
 			FlagSCHashLoggerMaxDiskSize:      uint(1 << 35),
 			FlagSCFlatKVReadWriteMetrics:     true,
 		},
-		Context: map[string]configtest.AppOpts{
-			// Automatic mode overrides the written mode, so without turning it off this key reaches
-			// nothing observable and would read as a key the reader never looks up.
-			FlagSCWriteMode: {FlagSCWriteModeEnableAuto: false},
-		},
-		AlsoDerives: map[string][]string{
-			// Turning automatic mode off also settles what the write mode becomes, because the reader
-			// computes the mode from both keys rather than storing what was written.
-			FlagSCWriteModeEnableAuto: {"WriteMode"},
+		Skip: map[string]string{
+			FlagSCWriteMode: "FuzzSCWriteMode, which drives both this key and " +
+				"sc-write-mode-enable-auto: automatic mode overrides the written mode, so probing this " +
+				"one alone reaches nothing",
+			FlagSCWriteModeEnableAuto: "FuzzSCWriteMode, which drives both this key and sc-write-mode: " +
+				"the reader computes the mode from the two together, so writing this one moves the mode " +
+				"as well as its own field",
 		},
 	})
 }
