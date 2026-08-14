@@ -1,6 +1,7 @@
 package cosmosbase_test
 
 import (
+	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -440,4 +441,35 @@ func TestTheRosettaZeroWhenAbsentDeclarationMatchesItsReader(t *testing.T) {
 		}
 		return cfg.Rosetta, nil
 	})
+}
+
+// TestTheConcurrencyWorkersBaselineIsTheHostsProcessorCount holds the host-derived declaration.
+//
+// The record cannot hold this value, so it holds a marker, and a change to the derivation would move
+// neither. This is what covers that: it computes the same derivation from the same input and requires
+// the baseline to match, which fails on any host rather than only on the one that recorded it.
+func TestTheConcurrencyWorkersBaselineIsTheHostsProcessorCount(t *testing.T) {
+	if !registry.HostDerived("concurrency-workers") {
+		t.Fatal("concurrency-workers is not declared as host-derived, so the record holds this machine's " +
+			"processor count and fails on every other one")
+	}
+
+	want := max(10, min(runtime.NumCPU()*2, 128))
+	resolved, err := registry.Resolve(registry.ModeValidator)
+	if err != nil {
+		t.Fatalf("Resolve: %v", err)
+	}
+	got, found := resolved.Keys["concurrency-workers"]
+	if !found {
+		t.Fatal("concurrency-workers resolves to nothing")
+	}
+	if got.Value != want {
+		t.Errorf("the baseline is %#v and this host's derivation gives %d. Either the formula moved, in "+
+			"which case say so here, or the key stopped being derived and its value belongs in the record",
+			got.Value, want)
+	}
+	// A derivation that ignored its input would pass the comparison above on a single-processor host.
+	if runtime.NumCPU() < 1 {
+		t.Fatal("this host reports no processors, so the comparison above holds for any formula")
+	}
 }

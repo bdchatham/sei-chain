@@ -130,3 +130,52 @@ func AbsentValues(mode Mode) (map[string]any, error) {
 	}
 	return out, nil
 }
+
+// hostDerived holds the keys whose baseline the running machine decides, and why.
+var hostDerived = map[string]string{}
+
+// DeclareHostDerived records that a key's baseline is computed from the machine rather than stated.
+//
+// Four defaults in the declared space are read off the host: the moniker is its name, and three sizing
+// values scale with its processor count. They are correct answers, and they are answers about one
+// machine, so two nodes running the same release resolve different ones.
+//
+// Two things follow, and they are why this is declared rather than left implicit. A record of the key
+// space cannot hold the evaluated value, because it would then say what the recording machine had and
+// fail everywhere else. And a diagnostic comparing a node's file against this binary's defaults must not
+// report one of these as drift, because on a different-sized machine the two legitimately differ.
+//
+// why names what the value is derived from, so a reader can check the claim. A key declared here without
+// one cannot be told from a key somebody guessed about, and the owning package holds the claim with a
+// test that computes the same derivation.
+func DeclareHostDerived(section, key, why string) {
+	mu.Lock()
+	defer mu.Unlock()
+	if why == "" {
+		defects = append(defects, Defect{Section: section, Err: fmt.Errorf(
+			"declared %q as host-derived with no reason; without one it cannot be told from a key "+
+				"somebody guessed about", key)})
+		return
+	}
+	hostDerived[key] = why
+}
+
+// HostDerived reports whether a key's baseline is computed from the running machine.
+func HostDerived(key string) bool {
+	mu.RLock()
+	defer mu.RUnlock()
+	_, ok := hostDerived[key]
+	return ok
+}
+
+// HostDerivedKeys returns those keys, sorted.
+func HostDerivedKeys() []string {
+	mu.RLock()
+	defer mu.RUnlock()
+	out := make([]string, 0, len(hostDerived))
+	for key := range hostDerived {
+		out = append(out, key)
+	}
+	sort.Strings(out)
+	return out
+}

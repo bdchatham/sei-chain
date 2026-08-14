@@ -2,6 +2,7 @@ package registry_test
 
 import (
 	"fmt"
+	"runtime"
 	"strings"
 	"testing"
 
@@ -1021,5 +1022,62 @@ func TestASquashedFieldPromotesItsKeysToTheEnclosingLevel(t *testing.T) {
 		if got.Value != want {
 			t.Errorf("%s resolves to %#v, want %#v", key, got.Value, want)
 		}
+	}
+}
+
+// TestNoHostDerivedBaselineReachesTheSurface is what makes the record reproduce on another machine.
+//
+// A recorded baseline read off the recording host fails everywhere else, and the failure names a value
+// nobody changed. This holds the substitution that prevents it: every key declared host-derived renders
+// as the marker, so the record carries the fact that the key has such a value and never the value.
+//
+// Held over the rendered text rather than over renderBaseline, because the surface is what is recorded
+// and a substitution that worked in isolation and was not reached would leave the record host-dependent.
+func TestNoHostDerivedBaselineReachesTheSurface(t *testing.T) {
+	registry.Reset()
+	registry.RegisterSection("probe", &struct {
+		Sized int `mapstructure:"sized"`
+		Fixed int `mapstructure:"fixed"`
+	}{}, func(registry.Mode) any {
+		return struct {
+			Sized int `mapstructure:"sized"`
+			Fixed int `mapstructure:"fixed"`
+		}{Sized: runtime.NumCPU(), Fixed: 7}
+	})
+	registry.DeclareHostDerived("probe", "probe.sized", "the host's processor count")
+	for _, d := range registry.Defects() {
+		t.Fatalf("registering the probe section produced a defect: %v", d.Err)
+	}
+	t.Cleanup(registry.Reset)
+
+	surface := registry.Surface()
+	for _, mode := range registry.Modes() {
+		line := "default:probe:" + string(mode) + ":probe.sized:"
+		if !strings.Contains(surface, line+"<derived from the host>") {
+			t.Errorf("the surface records probe.sized for %q mode as something other than the marker. "+
+				"A processor count in this record fails on every host that has a different one:\n%s",
+				mode, surface)
+		}
+	}
+	// The key beside it still records its value, or the substitution is covering everything and the
+	// record has stopped saying what a default is.
+	if !strings.Contains(surface, "probe.fixed:7") {
+		t.Errorf("a key that is not host-derived no longer records its value:\n%s", surface)
+	}
+}
+
+// TestAHostDerivedDeclarationNeedsItsReason keeps the list from filling with guesses.
+func TestAHostDerivedDeclarationNeedsItsReason(t *testing.T) {
+	registry.Reset()
+	t.Cleanup(registry.Reset)
+	registry.DeclareHostDerived("probe", "probe.sized", "")
+
+	if len(registry.Defects()) == 0 {
+		t.Error("a host-derived declaration with no reason was accepted. Without one it cannot be told " +
+			"from a key somebody guessed about, and the record stops holding its value on that guess")
+	}
+	if registry.HostDerived("probe.sized") {
+		t.Error("the refused declaration took effect anyway, so the key's value is suppressed from the " +
+			"record on a declaration the registry rejected")
 	}
 }

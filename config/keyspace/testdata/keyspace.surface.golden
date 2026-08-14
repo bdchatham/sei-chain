@@ -8,10 +8,14 @@
 section:admin_server
 key:admin_server.admin_address
 key:admin_server.admin_enabled
-default:admin_server:validator:admin.Config{Enabled:false, Address:"127.0.0.1:9095"}
-default:admin_server:full:admin.Config{Enabled:false, Address:"127.0.0.1:9095"}
-default:admin_server:seed:admin.Config{Enabled:false, Address:"127.0.0.1:9095"}
-default:admin_server:archive:admin.Config{Enabled:false, Address:"127.0.0.1:9095"}
+default:admin_server:validator:admin_server.admin_address:"127.0.0.1:9095"
+default:admin_server:validator:admin_server.admin_enabled:false
+default:admin_server:full:admin_server.admin_address:"127.0.0.1:9095"
+default:admin_server:full:admin_server.admin_enabled:false
+default:admin_server:seed:admin_server.admin_address:"127.0.0.1:9095"
+default:admin_server:seed:admin_server.admin_enabled:false
+default:admin_server:archive:admin_server.admin_address:"127.0.0.1:9095"
+default:admin_server:archive:admin_server.admin_enabled:false
 section:api
 key:api.address
 key:api.enable
@@ -21,10 +25,38 @@ key:api.rpc-max-body-bytes
 key:api.rpc-read-timeout
 key:api.rpc-write-timeout
 key:api.swagger
-default:api:validator:config.APIConfig{Enable:false, Swagger:true, EnableUnsafeCORS:false, Address:"tcp://0.0.0.0:1317", MaxOpenConnections:0x3e8, RPCReadTimeout:0xa, RPCWriteTimeout:0x0, RPCMaxBodyBytes:0xf4240}
-default:api:full:config.APIConfig{Enable:false, Swagger:true, EnableUnsafeCORS:false, Address:"tcp://0.0.0.0:1317", MaxOpenConnections:0x3e8, RPCReadTimeout:0xa, RPCWriteTimeout:0x0, RPCMaxBodyBytes:0xf4240}
-default:api:seed:config.APIConfig{Enable:false, Swagger:true, EnableUnsafeCORS:false, Address:"tcp://0.0.0.0:1317", MaxOpenConnections:0x3e8, RPCReadTimeout:0xa, RPCWriteTimeout:0x0, RPCMaxBodyBytes:0xf4240}
-default:api:archive:config.APIConfig{Enable:false, Swagger:true, EnableUnsafeCORS:false, Address:"tcp://0.0.0.0:1317", MaxOpenConnections:0x3e8, RPCReadTimeout:0xa, RPCWriteTimeout:0x0, RPCMaxBodyBytes:0xf4240}
+default:api:validator:api.address:"tcp://0.0.0.0:1317"
+default:api:validator:api.enable:false
+default:api:validator:api.enabled-unsafe-cors:false
+default:api:validator:api.max-open-connections:0x3e8
+default:api:validator:api.rpc-max-body-bytes:0xf4240
+default:api:validator:api.rpc-read-timeout:0xa
+default:api:validator:api.rpc-write-timeout:0x0
+default:api:validator:api.swagger:true
+default:api:full:api.address:"tcp://0.0.0.0:1317"
+default:api:full:api.enable:false
+default:api:full:api.enabled-unsafe-cors:false
+default:api:full:api.max-open-connections:0x3e8
+default:api:full:api.rpc-max-body-bytes:0xf4240
+default:api:full:api.rpc-read-timeout:0xa
+default:api:full:api.rpc-write-timeout:0x0
+default:api:full:api.swagger:true
+default:api:seed:api.address:"tcp://0.0.0.0:1317"
+default:api:seed:api.enable:false
+default:api:seed:api.enabled-unsafe-cors:false
+default:api:seed:api.max-open-connections:0x3e8
+default:api:seed:api.rpc-max-body-bytes:0xf4240
+default:api:seed:api.rpc-read-timeout:0xa
+default:api:seed:api.rpc-write-timeout:0x0
+default:api:seed:api.swagger:true
+default:api:archive:api.address:"tcp://0.0.0.0:1317"
+default:api:archive:api.enable:false
+default:api:archive:api.enabled-unsafe-cors:false
+default:api:archive:api.max-open-connections:0x3e8
+default:api:archive:api.rpc-max-body-bytes:0xf4240
+default:api:archive:api.rpc-read-timeout:0xa
+default:api:archive:api.rpc-write-timeout:0x0
+default:api:archive:api.swagger:true
 section:base
 root-keys:base
 key:compaction-interval
@@ -40,26 +72,90 @@ key:pruning
 key:pruning-interval
 key:pruning-keep-every
 key:pruning-keep-recent
-default:base:validator:config.BaseConfig{MinGasPrices:"0.01usei", Pruning:"nothing", PruningKeepRecent:"0", PruningKeepEvery:"0", PruningInterval:"0", HaltHeight:0x0, HaltTime:0x0, MinRetainBlocks:0x0, InterBlockCache:true, IndexEvents:[]string(nil), CompactionInterval:0x0, ConcurrencyWorkers:20, OccEnabled:true}
-default:base:full:config.BaseConfig{MinGasPrices:"0.01usei", Pruning:"nothing", PruningKeepRecent:"0", PruningKeepEvery:"0", PruningInterval:"0", HaltHeight:0x0, HaltTime:0x0, MinRetainBlocks:0x0, InterBlockCache:true, IndexEvents:[]string(nil), CompactionInterval:0x0, ConcurrencyWorkers:20, OccEnabled:true}
-default:base:seed:config.BaseConfig{MinGasPrices:"0.01usei", Pruning:"nothing", PruningKeepRecent:"0", PruningKeepEvery:"0", PruningInterval:"0", HaltHeight:0x0, HaltTime:0x0, MinRetainBlocks:0x0, InterBlockCache:true, IndexEvents:[]string(nil), CompactionInterval:0x0, ConcurrencyWorkers:20, OccEnabled:true}
-default:base:archive:config.BaseConfig{MinGasPrices:"0.01usei", Pruning:"nothing", PruningKeepRecent:"0", PruningKeepEvery:"0", PruningInterval:"0", HaltHeight:0x0, HaltTime:0x0, MinRetainBlocks:0x0, InterBlockCache:true, IndexEvents:[]string(nil), CompactionInterval:0x0, ConcurrencyWorkers:20, OccEnabled:true}
+default:base:validator:compaction-interval:<nil>
+default:base:validator:concurrency-workers:<derived from the host>
+default:base:validator:halt-height:<nil>
+default:base:validator:halt-time:<nil>
+default:base:validator:index-events:<nil>
+default:base:validator:inter-block-cache:<nil>
+default:base:validator:min-retain-blocks:<nil>
+default:base:validator:minimum-gas-prices:<nil>
+default:base:validator:occ-enabled:<nil>
+default:base:validator:pruning:<nil>
+default:base:validator:pruning-interval:<nil>
+default:base:validator:pruning-keep-every:<nil>
+default:base:validator:pruning-keep-recent:<nil>
+default:base:full:compaction-interval:<nil>
+default:base:full:concurrency-workers:<derived from the host>
+default:base:full:halt-height:<nil>
+default:base:full:halt-time:<nil>
+default:base:full:index-events:<nil>
+default:base:full:inter-block-cache:<nil>
+default:base:full:min-retain-blocks:<nil>
+default:base:full:minimum-gas-prices:<nil>
+default:base:full:occ-enabled:<nil>
+default:base:full:pruning:<nil>
+default:base:full:pruning-interval:<nil>
+default:base:full:pruning-keep-every:<nil>
+default:base:full:pruning-keep-recent:<nil>
+default:base:seed:compaction-interval:<nil>
+default:base:seed:concurrency-workers:<derived from the host>
+default:base:seed:halt-height:<nil>
+default:base:seed:halt-time:<nil>
+default:base:seed:index-events:<nil>
+default:base:seed:inter-block-cache:<nil>
+default:base:seed:min-retain-blocks:<nil>
+default:base:seed:minimum-gas-prices:<nil>
+default:base:seed:occ-enabled:<nil>
+default:base:seed:pruning:<nil>
+default:base:seed:pruning-interval:<nil>
+default:base:seed:pruning-keep-every:<nil>
+default:base:seed:pruning-keep-recent:<nil>
+default:base:archive:compaction-interval:<nil>
+default:base:archive:concurrency-workers:<derived from the host>
+default:base:archive:halt-height:<nil>
+default:base:archive:halt-time:<nil>
+default:base:archive:index-events:<nil>
+default:base:archive:inter-block-cache:<nil>
+default:base:archive:min-retain-blocks:<nil>
+default:base:archive:minimum-gas-prices:<nil>
+default:base:archive:occ-enabled:<nil>
+default:base:archive:pruning:<nil>
+default:base:archive:pruning-interval:<nil>
+default:base:archive:pruning-keep-every:<nil>
+default:base:archive:pruning-keep-recent:<nil>
 section:eth_blocktest
 key:eth_blocktest.eth_blocktest_enabled
 key:eth_blocktest.eth_blocktest_test_data_path
-default:eth_blocktest:validator:blocktest.Config{Enabled:false, TestDataPath:"~/testdata/"}
-default:eth_blocktest:full:blocktest.Config{Enabled:false, TestDataPath:"~/testdata/"}
-default:eth_blocktest:seed:blocktest.Config{Enabled:false, TestDataPath:"~/testdata/"}
-default:eth_blocktest:archive:blocktest.Config{Enabled:false, TestDataPath:"~/testdata/"}
+default:eth_blocktest:validator:eth_blocktest.eth_blocktest_enabled:false
+default:eth_blocktest:validator:eth_blocktest.eth_blocktest_test_data_path:"~/testdata/"
+default:eth_blocktest:full:eth_blocktest.eth_blocktest_enabled:false
+default:eth_blocktest:full:eth_blocktest.eth_blocktest_test_data_path:"~/testdata/"
+default:eth_blocktest:seed:eth_blocktest.eth_blocktest_enabled:false
+default:eth_blocktest:seed:eth_blocktest.eth_blocktest_test_data_path:"~/testdata/"
+default:eth_blocktest:archive:eth_blocktest.eth_blocktest_enabled:false
+default:eth_blocktest:archive:eth_blocktest.eth_blocktest_test_data_path:"~/testdata/"
 section:eth_replay
 key:eth_replay.contract_state_checks
 key:eth_replay.eth_data_dir
 key:eth_replay.eth_replay_enabled
 key:eth_replay.eth_rpc
-default:eth_replay:validator:replay.Config{Enabled:false, EthRPC:"http://44.234.105.54:18545", EthDataDir:"/root/.ethereum/chaindata", ContractStateChecks:false}
-default:eth_replay:full:replay.Config{Enabled:false, EthRPC:"http://44.234.105.54:18545", EthDataDir:"/root/.ethereum/chaindata", ContractStateChecks:false}
-default:eth_replay:seed:replay.Config{Enabled:false, EthRPC:"http://44.234.105.54:18545", EthDataDir:"/root/.ethereum/chaindata", ContractStateChecks:false}
-default:eth_replay:archive:replay.Config{Enabled:false, EthRPC:"http://44.234.105.54:18545", EthDataDir:"/root/.ethereum/chaindata", ContractStateChecks:false}
+default:eth_replay:validator:eth_replay.contract_state_checks:false
+default:eth_replay:validator:eth_replay.eth_data_dir:"/root/.ethereum/chaindata"
+default:eth_replay:validator:eth_replay.eth_replay_enabled:false
+default:eth_replay:validator:eth_replay.eth_rpc:"http://44.234.105.54:18545"
+default:eth_replay:full:eth_replay.contract_state_checks:false
+default:eth_replay:full:eth_replay.eth_data_dir:"/root/.ethereum/chaindata"
+default:eth_replay:full:eth_replay.eth_replay_enabled:false
+default:eth_replay:full:eth_replay.eth_rpc:"http://44.234.105.54:18545"
+default:eth_replay:seed:eth_replay.contract_state_checks:false
+default:eth_replay:seed:eth_replay.eth_data_dir:"/root/.ethereum/chaindata"
+default:eth_replay:seed:eth_replay.eth_replay_enabled:false
+default:eth_replay:seed:eth_replay.eth_rpc:"http://44.234.105.54:18545"
+default:eth_replay:archive:eth_replay.contract_state_checks:false
+default:eth_replay:archive:eth_replay.eth_data_dir:"/root/.ethereum/chaindata"
+default:eth_replay:archive:eth_replay.eth_replay_enabled:false
+default:eth_replay:archive:eth_replay.eth_rpc:"http://44.234.105.54:18545"
 section:evm
 key:evm.batch_request_limit
 key:evm.batch_response_max_size
@@ -117,31 +213,263 @@ key:evm.ws_admission_timeout
 key:evm.ws_enabled
 key:evm.ws_origins
 key:evm.ws_port
-default:evm:validator:config.Config{HTTPEnabled:false, HTTPPort:8545, WSEnabled:false, WSPort:8546, ReadTimeout:30000000000, ReadHeaderTimeout:30000000000, WriteTimeout:30000000000, IdleTimeout:120000000000, SimulationGasLimit:0x989680, SimulationEVMTimeout:60000000000, CORSOrigins:"*", WSOrigins:"*", FilterTimeout:120000000000, CheckTxTimeout:5000000000, MaxTxPoolTxs:0x3e8, Slow:false, DenyList:[]string{}, MaxLogNoBlock:10000, MaxLogBytes:67108864, MaxBlocksForLog:2000, MaxEstimateGasCalls:100, MaxStateOverrideAccounts:100, MaxStateOverrideSlots:1000, MaxSubscriptionsNewHead:0x2710, MaxSubscriptionsLogs:0x3e8, EnableTestAPI:false, MaxConcurrentTraceCalls:0xa, MaxConcurrentSimulationCalls:10, MaxTraceLookbackBlocks:10000, TraceTimeout:30000000000, MaxTraceStructLogBytes:0x2000000, TraceAllowedTracers:[]string{"callTracer", "prestateTracer", "flatCallTracer", "4byteTracer", "noopTracer", "muxTracer"}, TraceAllowJSTracers:false, EnableParallelizedBlockTrace:false, RPCStatsInterval:10000000000, WorkerPoolSize:20, WorkerQueueSize:1000, EnabledLegacySeiApis:[]string{"sei_getSeiAddress", "sei_getEVMAddress", "sei_getCosmosTx"}, TraceBakeEnabled:false, TraceBakeWorkers:1, TraceBakeQueueSize:4096, TraceBakeTracers:[]string{"callTracer"}, TraceBakeWindowBlocks:0, TraceBakeUseSnapshot:false, TraceBakeSnapshotWindow:64, IPRateLimitRPS:200, IPRateLimitBurst:1000, RateLimitingEnabled:false, TrustedProxyCIDRs:[]string(nil), BatchRequestLimit:1000, BatchResponseMaxSize:25000000, MaxRequestBodyBytes:5242880, MaxConcurrentRequestBytes:134217728, BodyReadIdleTimeout:10000000000, WSAdmissionTimeout:30000000000, MaxOpenConnections:2000}
-default:evm:full:config.Config{HTTPEnabled:true, HTTPPort:8545, WSEnabled:true, WSPort:8546, ReadTimeout:30000000000, ReadHeaderTimeout:30000000000, WriteTimeout:30000000000, IdleTimeout:120000000000, SimulationGasLimit:0x989680, SimulationEVMTimeout:60000000000, CORSOrigins:"*", WSOrigins:"*", FilterTimeout:120000000000, CheckTxTimeout:5000000000, MaxTxPoolTxs:0x3e8, Slow:false, DenyList:[]string{}, MaxLogNoBlock:10000, MaxLogBytes:67108864, MaxBlocksForLog:2000, MaxEstimateGasCalls:100, MaxStateOverrideAccounts:100, MaxStateOverrideSlots:1000, MaxSubscriptionsNewHead:0x2710, MaxSubscriptionsLogs:0x3e8, EnableTestAPI:false, MaxConcurrentTraceCalls:0xa, MaxConcurrentSimulationCalls:10, MaxTraceLookbackBlocks:10000, TraceTimeout:30000000000, MaxTraceStructLogBytes:0x2000000, TraceAllowedTracers:[]string{"callTracer", "prestateTracer", "flatCallTracer", "4byteTracer", "noopTracer", "muxTracer"}, TraceAllowJSTracers:false, EnableParallelizedBlockTrace:false, RPCStatsInterval:10000000000, WorkerPoolSize:20, WorkerQueueSize:1000, EnabledLegacySeiApis:[]string{"sei_getSeiAddress", "sei_getEVMAddress", "sei_getCosmosTx"}, TraceBakeEnabled:false, TraceBakeWorkers:1, TraceBakeQueueSize:4096, TraceBakeTracers:[]string{"callTracer"}, TraceBakeWindowBlocks:0, TraceBakeUseSnapshot:false, TraceBakeSnapshotWindow:64, IPRateLimitRPS:200, IPRateLimitBurst:1000, RateLimitingEnabled:false, TrustedProxyCIDRs:[]string(nil), BatchRequestLimit:1000, BatchResponseMaxSize:25000000, MaxRequestBodyBytes:5242880, MaxConcurrentRequestBytes:134217728, BodyReadIdleTimeout:10000000000, WSAdmissionTimeout:30000000000, MaxOpenConnections:2000}
-default:evm:seed:config.Config{HTTPEnabled:false, HTTPPort:8545, WSEnabled:false, WSPort:8546, ReadTimeout:30000000000, ReadHeaderTimeout:30000000000, WriteTimeout:30000000000, IdleTimeout:120000000000, SimulationGasLimit:0x989680, SimulationEVMTimeout:60000000000, CORSOrigins:"*", WSOrigins:"*", FilterTimeout:120000000000, CheckTxTimeout:5000000000, MaxTxPoolTxs:0x3e8, Slow:false, DenyList:[]string{}, MaxLogNoBlock:10000, MaxLogBytes:67108864, MaxBlocksForLog:2000, MaxEstimateGasCalls:100, MaxStateOverrideAccounts:100, MaxStateOverrideSlots:1000, MaxSubscriptionsNewHead:0x2710, MaxSubscriptionsLogs:0x3e8, EnableTestAPI:false, MaxConcurrentTraceCalls:0xa, MaxConcurrentSimulationCalls:10, MaxTraceLookbackBlocks:10000, TraceTimeout:30000000000, MaxTraceStructLogBytes:0x2000000, TraceAllowedTracers:[]string{"callTracer", "prestateTracer", "flatCallTracer", "4byteTracer", "noopTracer", "muxTracer"}, TraceAllowJSTracers:false, EnableParallelizedBlockTrace:false, RPCStatsInterval:10000000000, WorkerPoolSize:20, WorkerQueueSize:1000, EnabledLegacySeiApis:[]string{"sei_getSeiAddress", "sei_getEVMAddress", "sei_getCosmosTx"}, TraceBakeEnabled:false, TraceBakeWorkers:1, TraceBakeQueueSize:4096, TraceBakeTracers:[]string{"callTracer"}, TraceBakeWindowBlocks:0, TraceBakeUseSnapshot:false, TraceBakeSnapshotWindow:64, IPRateLimitRPS:200, IPRateLimitBurst:1000, RateLimitingEnabled:false, TrustedProxyCIDRs:[]string(nil), BatchRequestLimit:1000, BatchResponseMaxSize:25000000, MaxRequestBodyBytes:5242880, MaxConcurrentRequestBytes:134217728, BodyReadIdleTimeout:10000000000, WSAdmissionTimeout:30000000000, MaxOpenConnections:2000}
-default:evm:archive:config.Config{HTTPEnabled:true, HTTPPort:8545, WSEnabled:true, WSPort:8546, ReadTimeout:30000000000, ReadHeaderTimeout:30000000000, WriteTimeout:30000000000, IdleTimeout:120000000000, SimulationGasLimit:0x989680, SimulationEVMTimeout:60000000000, CORSOrigins:"*", WSOrigins:"*", FilterTimeout:120000000000, CheckTxTimeout:5000000000, MaxTxPoolTxs:0x3e8, Slow:false, DenyList:[]string{}, MaxLogNoBlock:10000, MaxLogBytes:67108864, MaxBlocksForLog:2000, MaxEstimateGasCalls:100, MaxStateOverrideAccounts:100, MaxStateOverrideSlots:1000, MaxSubscriptionsNewHead:0x2710, MaxSubscriptionsLogs:0x3e8, EnableTestAPI:false, MaxConcurrentTraceCalls:0xa, MaxConcurrentSimulationCalls:10, MaxTraceLookbackBlocks:10000, TraceTimeout:30000000000, MaxTraceStructLogBytes:0x2000000, TraceAllowedTracers:[]string{"callTracer", "prestateTracer", "flatCallTracer", "4byteTracer", "noopTracer", "muxTracer"}, TraceAllowJSTracers:false, EnableParallelizedBlockTrace:false, RPCStatsInterval:10000000000, WorkerPoolSize:20, WorkerQueueSize:1000, EnabledLegacySeiApis:[]string{"sei_getSeiAddress", "sei_getEVMAddress", "sei_getCosmosTx"}, TraceBakeEnabled:false, TraceBakeWorkers:1, TraceBakeQueueSize:4096, TraceBakeTracers:[]string{"callTracer"}, TraceBakeWindowBlocks:0, TraceBakeUseSnapshot:false, TraceBakeSnapshotWindow:64, IPRateLimitRPS:200, IPRateLimitBurst:1000, RateLimitingEnabled:false, TrustedProxyCIDRs:[]string(nil), BatchRequestLimit:1000, BatchResponseMaxSize:25000000, MaxRequestBodyBytes:5242880, MaxConcurrentRequestBytes:134217728, BodyReadIdleTimeout:10000000000, WSAdmissionTimeout:30000000000, MaxOpenConnections:2000}
+default:evm:validator:evm.batch_request_limit:1000
+default:evm:validator:evm.batch_response_max_size:25000000
+default:evm:validator:evm.body_read_idle_timeout:10000000000
+default:evm:validator:evm.checktx_timeout:5000000000
+default:evm:validator:evm.cors_origins:"*"
+default:evm:validator:evm.deny_list:[]string{}
+default:evm:validator:evm.enable_parallelized_block_trace:false
+default:evm:validator:evm.enable_test_api:false
+default:evm:validator:evm.enabled_legacy_sei_apis:[]string{"sei_getSeiAddress", "sei_getEVMAddress", "sei_getCosmosTx"}
+default:evm:validator:evm.filter_timeout:120000000000
+default:evm:validator:evm.http_enabled:false
+default:evm:validator:evm.http_port:8545
+default:evm:validator:evm.idle_timeout:120000000000
+default:evm:validator:evm.ip_rate_limit_burst:1000
+default:evm:validator:evm.ip_rate_limit_rps:200
+default:evm:validator:evm.max_blocks_for_log:2000
+default:evm:validator:evm.max_concurrent_request_bytes:134217728
+default:evm:validator:evm.max_concurrent_simulation_calls:<derived from the host>
+default:evm:validator:evm.max_concurrent_trace_calls:0xa
+default:evm:validator:evm.max_estimate_gas_calls:100
+default:evm:validator:evm.max_log_bytes:67108864
+default:evm:validator:evm.max_log_no_block:10000
+default:evm:validator:evm.max_open_connections:2000
+default:evm:validator:evm.max_request_body_bytes:5242880
+default:evm:validator:evm.max_state_override_accounts:100
+default:evm:validator:evm.max_state_override_slots:1000
+default:evm:validator:evm.max_subscriptions_logs:0x3e8
+default:evm:validator:evm.max_subscriptions_new_head:0x2710
+default:evm:validator:evm.max_trace_lookback_blocks:10000
+default:evm:validator:evm.max_trace_struct_log_bytes:0x2000000
+default:evm:validator:evm.max_tx_pool_txs:0x3e8
+default:evm:validator:evm.rate_limiting_enabled:false
+default:evm:validator:evm.read_header_timeout:30000000000
+default:evm:validator:evm.read_timeout:30000000000
+default:evm:validator:evm.rpc_stats_interval:10000000000
+default:evm:validator:evm.simulation_evm_timeout:60000000000
+default:evm:validator:evm.simulation_gas_limit:0x989680
+default:evm:validator:evm.slow:false
+default:evm:validator:evm.trace_allow_js_tracers:false
+default:evm:validator:evm.trace_allowed_tracers:[]string{"callTracer", "prestateTracer", "flatCallTracer", "4byteTracer", "noopTracer", "muxTracer"}
+default:evm:validator:evm.trace_bake_enabled:false
+default:evm:validator:evm.trace_bake_queue_size:4096
+default:evm:validator:evm.trace_bake_snapshot_window:64
+default:evm:validator:evm.trace_bake_tracers:[]string{"callTracer"}
+default:evm:validator:evm.trace_bake_use_snapshot:false
+default:evm:validator:evm.trace_bake_window_blocks:0
+default:evm:validator:evm.trace_bake_workers:1
+default:evm:validator:evm.trace_timeout:30000000000
+default:evm:validator:evm.trusted_proxy_cidrs:[]string(nil)
+default:evm:validator:evm.worker_pool_size:<derived from the host>
+default:evm:validator:evm.worker_queue_size:1000
+default:evm:validator:evm.write_timeout:30000000000
+default:evm:validator:evm.ws_admission_timeout:30000000000
+default:evm:validator:evm.ws_enabled:false
+default:evm:validator:evm.ws_origins:"*"
+default:evm:validator:evm.ws_port:8546
+default:evm:full:evm.batch_request_limit:1000
+default:evm:full:evm.batch_response_max_size:25000000
+default:evm:full:evm.body_read_idle_timeout:10000000000
+default:evm:full:evm.checktx_timeout:5000000000
+default:evm:full:evm.cors_origins:"*"
+default:evm:full:evm.deny_list:[]string{}
+default:evm:full:evm.enable_parallelized_block_trace:false
+default:evm:full:evm.enable_test_api:false
+default:evm:full:evm.enabled_legacy_sei_apis:[]string{"sei_getSeiAddress", "sei_getEVMAddress", "sei_getCosmosTx"}
+default:evm:full:evm.filter_timeout:120000000000
+default:evm:full:evm.http_enabled:true
+default:evm:full:evm.http_port:8545
+default:evm:full:evm.idle_timeout:120000000000
+default:evm:full:evm.ip_rate_limit_burst:1000
+default:evm:full:evm.ip_rate_limit_rps:200
+default:evm:full:evm.max_blocks_for_log:2000
+default:evm:full:evm.max_concurrent_request_bytes:134217728
+default:evm:full:evm.max_concurrent_simulation_calls:<derived from the host>
+default:evm:full:evm.max_concurrent_trace_calls:0xa
+default:evm:full:evm.max_estimate_gas_calls:100
+default:evm:full:evm.max_log_bytes:67108864
+default:evm:full:evm.max_log_no_block:10000
+default:evm:full:evm.max_open_connections:2000
+default:evm:full:evm.max_request_body_bytes:5242880
+default:evm:full:evm.max_state_override_accounts:100
+default:evm:full:evm.max_state_override_slots:1000
+default:evm:full:evm.max_subscriptions_logs:0x3e8
+default:evm:full:evm.max_subscriptions_new_head:0x2710
+default:evm:full:evm.max_trace_lookback_blocks:10000
+default:evm:full:evm.max_trace_struct_log_bytes:0x2000000
+default:evm:full:evm.max_tx_pool_txs:0x3e8
+default:evm:full:evm.rate_limiting_enabled:false
+default:evm:full:evm.read_header_timeout:30000000000
+default:evm:full:evm.read_timeout:30000000000
+default:evm:full:evm.rpc_stats_interval:10000000000
+default:evm:full:evm.simulation_evm_timeout:60000000000
+default:evm:full:evm.simulation_gas_limit:0x989680
+default:evm:full:evm.slow:false
+default:evm:full:evm.trace_allow_js_tracers:false
+default:evm:full:evm.trace_allowed_tracers:[]string{"callTracer", "prestateTracer", "flatCallTracer", "4byteTracer", "noopTracer", "muxTracer"}
+default:evm:full:evm.trace_bake_enabled:false
+default:evm:full:evm.trace_bake_queue_size:4096
+default:evm:full:evm.trace_bake_snapshot_window:64
+default:evm:full:evm.trace_bake_tracers:[]string{"callTracer"}
+default:evm:full:evm.trace_bake_use_snapshot:false
+default:evm:full:evm.trace_bake_window_blocks:0
+default:evm:full:evm.trace_bake_workers:1
+default:evm:full:evm.trace_timeout:30000000000
+default:evm:full:evm.trusted_proxy_cidrs:[]string(nil)
+default:evm:full:evm.worker_pool_size:<derived from the host>
+default:evm:full:evm.worker_queue_size:1000
+default:evm:full:evm.write_timeout:30000000000
+default:evm:full:evm.ws_admission_timeout:30000000000
+default:evm:full:evm.ws_enabled:true
+default:evm:full:evm.ws_origins:"*"
+default:evm:full:evm.ws_port:8546
+default:evm:seed:evm.batch_request_limit:1000
+default:evm:seed:evm.batch_response_max_size:25000000
+default:evm:seed:evm.body_read_idle_timeout:10000000000
+default:evm:seed:evm.checktx_timeout:5000000000
+default:evm:seed:evm.cors_origins:"*"
+default:evm:seed:evm.deny_list:[]string{}
+default:evm:seed:evm.enable_parallelized_block_trace:false
+default:evm:seed:evm.enable_test_api:false
+default:evm:seed:evm.enabled_legacy_sei_apis:[]string{"sei_getSeiAddress", "sei_getEVMAddress", "sei_getCosmosTx"}
+default:evm:seed:evm.filter_timeout:120000000000
+default:evm:seed:evm.http_enabled:false
+default:evm:seed:evm.http_port:8545
+default:evm:seed:evm.idle_timeout:120000000000
+default:evm:seed:evm.ip_rate_limit_burst:1000
+default:evm:seed:evm.ip_rate_limit_rps:200
+default:evm:seed:evm.max_blocks_for_log:2000
+default:evm:seed:evm.max_concurrent_request_bytes:134217728
+default:evm:seed:evm.max_concurrent_simulation_calls:<derived from the host>
+default:evm:seed:evm.max_concurrent_trace_calls:0xa
+default:evm:seed:evm.max_estimate_gas_calls:100
+default:evm:seed:evm.max_log_bytes:67108864
+default:evm:seed:evm.max_log_no_block:10000
+default:evm:seed:evm.max_open_connections:2000
+default:evm:seed:evm.max_request_body_bytes:5242880
+default:evm:seed:evm.max_state_override_accounts:100
+default:evm:seed:evm.max_state_override_slots:1000
+default:evm:seed:evm.max_subscriptions_logs:0x3e8
+default:evm:seed:evm.max_subscriptions_new_head:0x2710
+default:evm:seed:evm.max_trace_lookback_blocks:10000
+default:evm:seed:evm.max_trace_struct_log_bytes:0x2000000
+default:evm:seed:evm.max_tx_pool_txs:0x3e8
+default:evm:seed:evm.rate_limiting_enabled:false
+default:evm:seed:evm.read_header_timeout:30000000000
+default:evm:seed:evm.read_timeout:30000000000
+default:evm:seed:evm.rpc_stats_interval:10000000000
+default:evm:seed:evm.simulation_evm_timeout:60000000000
+default:evm:seed:evm.simulation_gas_limit:0x989680
+default:evm:seed:evm.slow:false
+default:evm:seed:evm.trace_allow_js_tracers:false
+default:evm:seed:evm.trace_allowed_tracers:[]string{"callTracer", "prestateTracer", "flatCallTracer", "4byteTracer", "noopTracer", "muxTracer"}
+default:evm:seed:evm.trace_bake_enabled:false
+default:evm:seed:evm.trace_bake_queue_size:4096
+default:evm:seed:evm.trace_bake_snapshot_window:64
+default:evm:seed:evm.trace_bake_tracers:[]string{"callTracer"}
+default:evm:seed:evm.trace_bake_use_snapshot:false
+default:evm:seed:evm.trace_bake_window_blocks:0
+default:evm:seed:evm.trace_bake_workers:1
+default:evm:seed:evm.trace_timeout:30000000000
+default:evm:seed:evm.trusted_proxy_cidrs:[]string(nil)
+default:evm:seed:evm.worker_pool_size:<derived from the host>
+default:evm:seed:evm.worker_queue_size:1000
+default:evm:seed:evm.write_timeout:30000000000
+default:evm:seed:evm.ws_admission_timeout:30000000000
+default:evm:seed:evm.ws_enabled:false
+default:evm:seed:evm.ws_origins:"*"
+default:evm:seed:evm.ws_port:8546
+default:evm:archive:evm.batch_request_limit:1000
+default:evm:archive:evm.batch_response_max_size:25000000
+default:evm:archive:evm.body_read_idle_timeout:10000000000
+default:evm:archive:evm.checktx_timeout:5000000000
+default:evm:archive:evm.cors_origins:"*"
+default:evm:archive:evm.deny_list:[]string{}
+default:evm:archive:evm.enable_parallelized_block_trace:false
+default:evm:archive:evm.enable_test_api:false
+default:evm:archive:evm.enabled_legacy_sei_apis:[]string{"sei_getSeiAddress", "sei_getEVMAddress", "sei_getCosmosTx"}
+default:evm:archive:evm.filter_timeout:120000000000
+default:evm:archive:evm.http_enabled:true
+default:evm:archive:evm.http_port:8545
+default:evm:archive:evm.idle_timeout:120000000000
+default:evm:archive:evm.ip_rate_limit_burst:1000
+default:evm:archive:evm.ip_rate_limit_rps:200
+default:evm:archive:evm.max_blocks_for_log:2000
+default:evm:archive:evm.max_concurrent_request_bytes:134217728
+default:evm:archive:evm.max_concurrent_simulation_calls:<derived from the host>
+default:evm:archive:evm.max_concurrent_trace_calls:0xa
+default:evm:archive:evm.max_estimate_gas_calls:100
+default:evm:archive:evm.max_log_bytes:67108864
+default:evm:archive:evm.max_log_no_block:10000
+default:evm:archive:evm.max_open_connections:2000
+default:evm:archive:evm.max_request_body_bytes:5242880
+default:evm:archive:evm.max_state_override_accounts:100
+default:evm:archive:evm.max_state_override_slots:1000
+default:evm:archive:evm.max_subscriptions_logs:0x3e8
+default:evm:archive:evm.max_subscriptions_new_head:0x2710
+default:evm:archive:evm.max_trace_lookback_blocks:10000
+default:evm:archive:evm.max_trace_struct_log_bytes:0x2000000
+default:evm:archive:evm.max_tx_pool_txs:0x3e8
+default:evm:archive:evm.rate_limiting_enabled:false
+default:evm:archive:evm.read_header_timeout:30000000000
+default:evm:archive:evm.read_timeout:30000000000
+default:evm:archive:evm.rpc_stats_interval:10000000000
+default:evm:archive:evm.simulation_evm_timeout:60000000000
+default:evm:archive:evm.simulation_gas_limit:0x989680
+default:evm:archive:evm.slow:false
+default:evm:archive:evm.trace_allow_js_tracers:false
+default:evm:archive:evm.trace_allowed_tracers:[]string{"callTracer", "prestateTracer", "flatCallTracer", "4byteTracer", "noopTracer", "muxTracer"}
+default:evm:archive:evm.trace_bake_enabled:false
+default:evm:archive:evm.trace_bake_queue_size:4096
+default:evm:archive:evm.trace_bake_snapshot_window:64
+default:evm:archive:evm.trace_bake_tracers:[]string{"callTracer"}
+default:evm:archive:evm.trace_bake_use_snapshot:false
+default:evm:archive:evm.trace_bake_window_blocks:0
+default:evm:archive:evm.trace_bake_workers:1
+default:evm:archive:evm.trace_timeout:30000000000
+default:evm:archive:evm.trusted_proxy_cidrs:[]string(nil)
+default:evm:archive:evm.worker_pool_size:<derived from the host>
+default:evm:archive:evm.worker_queue_size:1000
+default:evm:archive:evm.write_timeout:30000000000
+default:evm:archive:evm.ws_admission_timeout:30000000000
+default:evm:archive:evm.ws_enabled:true
+default:evm:archive:evm.ws_origins:"*"
+default:evm:archive:evm.ws_port:8546
 section:evm_query
 key:evm_query.evm_query_gas_limit
-default:evm_query:validator:querier.Config{GasLimit:0x493e0}
-default:evm_query:full:querier.Config{GasLimit:0x493e0}
-default:evm_query:seed:querier.Config{GasLimit:0x493e0}
-default:evm_query:archive:querier.Config{GasLimit:0x493e0}
+default:evm_query:validator:evm_query.evm_query_gas_limit:0x493e0
+default:evm_query:full:evm_query.evm_query_gas_limit:0x493e0
+default:evm_query:seed:evm_query.evm_query_gas_limit:0x493e0
+default:evm_query:archive:evm_query.evm_query_gas_limit:0x493e0
 section:genesis
 key:genesis.genesis-stream-file
 key:genesis.import-file
 key:genesis.stream-import
-default:genesis:validator:app.genesisSchema{StreamImport:false, ImportFile:"", GenesisStreamFile:""}
-default:genesis:full:app.genesisSchema{StreamImport:false, ImportFile:"", GenesisStreamFile:""}
-default:genesis:seed:app.genesisSchema{StreamImport:false, ImportFile:"", GenesisStreamFile:""}
-default:genesis:archive:app.genesisSchema{StreamImport:false, ImportFile:"", GenesisStreamFile:""}
+default:genesis:validator:genesis.genesis-stream-file:""
+default:genesis:validator:genesis.import-file:""
+default:genesis:validator:genesis.stream-import:false
+default:genesis:full:genesis.genesis-stream-file:""
+default:genesis:full:genesis.import-file:""
+default:genesis:full:genesis.stream-import:false
+default:genesis:seed:genesis.genesis-stream-file:""
+default:genesis:seed:genesis.import-file:""
+default:genesis:seed:genesis.stream-import:false
+default:genesis:archive:genesis.genesis-stream-file:""
+default:genesis:archive:genesis.import-file:""
+default:genesis:archive:genesis.stream-import:false
 section:giga_executor
 key:giga_executor.enabled
 key:giga_executor.occ_enabled
-default:giga_executor:validator:config.Config{Enabled:true, OCCEnabled:true}
-default:giga_executor:full:config.Config{Enabled:true, OCCEnabled:true}
-default:giga_executor:seed:config.Config{Enabled:true, OCCEnabled:true}
-default:giga_executor:archive:config.Config{Enabled:true, OCCEnabled:true}
+default:giga_executor:validator:giga_executor.enabled:true
+default:giga_executor:validator:giga_executor.occ_enabled:true
+default:giga_executor:full:giga_executor.enabled:true
+default:giga_executor:full:giga_executor.occ_enabled:true
+default:giga_executor:seed:giga_executor.enabled:true
+default:giga_executor:seed:giga_executor.occ_enabled:true
+default:giga_executor:archive:giga_executor.enabled:true
+default:giga_executor:archive:giga_executor.occ_enabled:true
 section:grpc
 key:grpc.address
 key:grpc.enable
@@ -154,25 +482,77 @@ key:grpc.max-connection-age-grace
 key:grpc.max-connection-idle
 key:grpc.max-open-connections
 key:grpc.max-recv-msg-size
-default:grpc:validator:config.GRPCConfig{Enable:true, Address:"0.0.0.0:9090", MaxRecvMsgSize:4194304, MaxOpenConnections:0x3e8, MaxConnectionIdle:300000000000, MaxConnectionAge:0, MaxConnectionAgeGrace:0, KeepaliveTime:7200000000000, KeepaliveTimeout:20000000000, KeepaliveMinTime:300000000000, KeepalivePermitWithoutStream:false}
-default:grpc:full:config.GRPCConfig{Enable:true, Address:"0.0.0.0:9090", MaxRecvMsgSize:4194304, MaxOpenConnections:0x3e8, MaxConnectionIdle:300000000000, MaxConnectionAge:0, MaxConnectionAgeGrace:0, KeepaliveTime:7200000000000, KeepaliveTimeout:20000000000, KeepaliveMinTime:300000000000, KeepalivePermitWithoutStream:false}
-default:grpc:seed:config.GRPCConfig{Enable:true, Address:"0.0.0.0:9090", MaxRecvMsgSize:4194304, MaxOpenConnections:0x3e8, MaxConnectionIdle:300000000000, MaxConnectionAge:0, MaxConnectionAgeGrace:0, KeepaliveTime:7200000000000, KeepaliveTimeout:20000000000, KeepaliveMinTime:300000000000, KeepalivePermitWithoutStream:false}
-default:grpc:archive:config.GRPCConfig{Enable:true, Address:"0.0.0.0:9090", MaxRecvMsgSize:4194304, MaxOpenConnections:0x3e8, MaxConnectionIdle:300000000000, MaxConnectionAge:0, MaxConnectionAgeGrace:0, KeepaliveTime:7200000000000, KeepaliveTimeout:20000000000, KeepaliveMinTime:300000000000, KeepalivePermitWithoutStream:false}
+default:grpc:validator:grpc.address:"0.0.0.0:9090"
+default:grpc:validator:grpc.enable:true
+default:grpc:validator:grpc.keepalive-min-time:300000000000
+default:grpc:validator:grpc.keepalive-permit-without-stream:false
+default:grpc:validator:grpc.keepalive-time:7200000000000
+default:grpc:validator:grpc.keepalive-timeout:20000000000
+default:grpc:validator:grpc.max-connection-age:0
+default:grpc:validator:grpc.max-connection-age-grace:0
+default:grpc:validator:grpc.max-connection-idle:300000000000
+default:grpc:validator:grpc.max-open-connections:0x3e8
+default:grpc:validator:grpc.max-recv-msg-size:4194304
+default:grpc:full:grpc.address:"0.0.0.0:9090"
+default:grpc:full:grpc.enable:true
+default:grpc:full:grpc.keepalive-min-time:300000000000
+default:grpc:full:grpc.keepalive-permit-without-stream:false
+default:grpc:full:grpc.keepalive-time:7200000000000
+default:grpc:full:grpc.keepalive-timeout:20000000000
+default:grpc:full:grpc.max-connection-age:0
+default:grpc:full:grpc.max-connection-age-grace:0
+default:grpc:full:grpc.max-connection-idle:300000000000
+default:grpc:full:grpc.max-open-connections:0x3e8
+default:grpc:full:grpc.max-recv-msg-size:4194304
+default:grpc:seed:grpc.address:"0.0.0.0:9090"
+default:grpc:seed:grpc.enable:true
+default:grpc:seed:grpc.keepalive-min-time:300000000000
+default:grpc:seed:grpc.keepalive-permit-without-stream:false
+default:grpc:seed:grpc.keepalive-time:7200000000000
+default:grpc:seed:grpc.keepalive-timeout:20000000000
+default:grpc:seed:grpc.max-connection-age:0
+default:grpc:seed:grpc.max-connection-age-grace:0
+default:grpc:seed:grpc.max-connection-idle:300000000000
+default:grpc:seed:grpc.max-open-connections:0x3e8
+default:grpc:seed:grpc.max-recv-msg-size:4194304
+default:grpc:archive:grpc.address:"0.0.0.0:9090"
+default:grpc:archive:grpc.enable:true
+default:grpc:archive:grpc.keepalive-min-time:300000000000
+default:grpc:archive:grpc.keepalive-permit-without-stream:false
+default:grpc:archive:grpc.keepalive-time:7200000000000
+default:grpc:archive:grpc.keepalive-timeout:20000000000
+default:grpc:archive:grpc.max-connection-age:0
+default:grpc:archive:grpc.max-connection-age-grace:0
+default:grpc:archive:grpc.max-connection-idle:300000000000
+default:grpc:archive:grpc.max-open-connections:0x3e8
+default:grpc:archive:grpc.max-recv-msg-size:4194304
 section:grpc-web
 key:grpc-web.address
 key:grpc-web.enable
 key:grpc-web.enable-unsafe-cors
 key:grpc-web.max-open-connections
-default:grpc-web:validator:config.GRPCWebConfig{Enable:true, Address:"0.0.0.0:9091", EnableUnsafeCORS:false, MaxOpenConnections:0x3e8}
-default:grpc-web:full:config.GRPCWebConfig{Enable:true, Address:"0.0.0.0:9091", EnableUnsafeCORS:false, MaxOpenConnections:0x3e8}
-default:grpc-web:seed:config.GRPCWebConfig{Enable:true, Address:"0.0.0.0:9091", EnableUnsafeCORS:false, MaxOpenConnections:0x3e8}
-default:grpc-web:archive:config.GRPCWebConfig{Enable:true, Address:"0.0.0.0:9091", EnableUnsafeCORS:false, MaxOpenConnections:0x3e8}
+default:grpc-web:validator:grpc-web.address:"0.0.0.0:9091"
+default:grpc-web:validator:grpc-web.enable:true
+default:grpc-web:validator:grpc-web.enable-unsafe-cors:false
+default:grpc-web:validator:grpc-web.max-open-connections:0x3e8
+default:grpc-web:full:grpc-web.address:"0.0.0.0:9091"
+default:grpc-web:full:grpc-web.enable:true
+default:grpc-web:full:grpc-web.enable-unsafe-cors:false
+default:grpc-web:full:grpc-web.max-open-connections:0x3e8
+default:grpc-web:seed:grpc-web.address:"0.0.0.0:9091"
+default:grpc-web:seed:grpc-web.enable:true
+default:grpc-web:seed:grpc-web.enable-unsafe-cors:false
+default:grpc-web:seed:grpc-web.max-open-connections:0x3e8
+default:grpc-web:archive:grpc-web.address:"0.0.0.0:9091"
+default:grpc-web:archive:grpc-web.enable:true
+default:grpc-web:archive:grpc-web.enable-unsafe-cors:false
+default:grpc-web:archive:grpc-web.max-open-connections:0x3e8
 section:light_invariance
 key:light_invariance.supply_enabled
-default:light_invariance:validator:app.LightInvarianceConfig{SupplyEnabled:true}
-default:light_invariance:full:app.LightInvarianceConfig{SupplyEnabled:true}
-default:light_invariance:seed:app.LightInvarianceConfig{SupplyEnabled:true}
-default:light_invariance:archive:app.LightInvarianceConfig{SupplyEnabled:true}
+default:light_invariance:validator:light_invariance.supply_enabled:true
+default:light_invariance:full:light_invariance.supply_enabled:true
+default:light_invariance:seed:light_invariance.supply_enabled:true
+default:light_invariance:archive:light_invariance.supply_enabled:true
 section:receipt-store
 key:receipt-store.async-write-buffer
 key:receipt-store.db-directory
@@ -180,10 +560,30 @@ key:receipt-store.enable-read-write-metrics
 key:receipt-store.log-filter-parallelism
 key:receipt-store.prune-interval-seconds
 key:receipt-store.rs-backend
-default:receipt-store:validator:config.ReceiptStoreConfig{DBDirectory:"", Backend:"pebbledb", AsyncWriteBuffer:100, KeepRecent:0, PruneIntervalSeconds:600, ExternalPruning:false, EnableReadWriteMetrics:false, LogFilterParallelism:16}
-default:receipt-store:full:config.ReceiptStoreConfig{DBDirectory:"", Backend:"pebbledb", AsyncWriteBuffer:100, KeepRecent:0, PruneIntervalSeconds:600, ExternalPruning:false, EnableReadWriteMetrics:false, LogFilterParallelism:16}
-default:receipt-store:seed:config.ReceiptStoreConfig{DBDirectory:"", Backend:"pebbledb", AsyncWriteBuffer:100, KeepRecent:0, PruneIntervalSeconds:600, ExternalPruning:false, EnableReadWriteMetrics:false, LogFilterParallelism:16}
-default:receipt-store:archive:config.ReceiptStoreConfig{DBDirectory:"", Backend:"pebbledb", AsyncWriteBuffer:100, KeepRecent:0, PruneIntervalSeconds:600, ExternalPruning:false, EnableReadWriteMetrics:false, LogFilterParallelism:16}
+default:receipt-store:validator:receipt-store.async-write-buffer:100
+default:receipt-store:validator:receipt-store.db-directory:""
+default:receipt-store:validator:receipt-store.enable-read-write-metrics:false
+default:receipt-store:validator:receipt-store.log-filter-parallelism:16
+default:receipt-store:validator:receipt-store.prune-interval-seconds:600
+default:receipt-store:validator:receipt-store.rs-backend:"pebbledb"
+default:receipt-store:full:receipt-store.async-write-buffer:100
+default:receipt-store:full:receipt-store.db-directory:""
+default:receipt-store:full:receipt-store.enable-read-write-metrics:false
+default:receipt-store:full:receipt-store.log-filter-parallelism:16
+default:receipt-store:full:receipt-store.prune-interval-seconds:600
+default:receipt-store:full:receipt-store.rs-backend:"pebbledb"
+default:receipt-store:seed:receipt-store.async-write-buffer:100
+default:receipt-store:seed:receipt-store.db-directory:""
+default:receipt-store:seed:receipt-store.enable-read-write-metrics:false
+default:receipt-store:seed:receipt-store.log-filter-parallelism:16
+default:receipt-store:seed:receipt-store.prune-interval-seconds:600
+default:receipt-store:seed:receipt-store.rs-backend:"pebbledb"
+default:receipt-store:archive:receipt-store.async-write-buffer:100
+default:receipt-store:archive:receipt-store.db-directory:""
+default:receipt-store:archive:receipt-store.enable-read-write-metrics:false
+default:receipt-store:archive:receipt-store.log-filter-parallelism:16
+default:receipt-store:archive:receipt-store.prune-interval-seconds:600
+default:receipt-store:archive:receipt-store.rs-backend:"pebbledb"
 section:rosetta
 key:rosetta.address
 key:rosetta.blockchain
@@ -191,10 +591,30 @@ key:rosetta.enable
 key:rosetta.network
 key:rosetta.offline
 key:rosetta.retries
-default:rosetta:validator:config.RosettaConfig{Address:":8080", Blockchain:"app", Network:"network", Retries:3, Enable:false, Offline:false}
-default:rosetta:full:config.RosettaConfig{Address:":8080", Blockchain:"app", Network:"network", Retries:3, Enable:false, Offline:false}
-default:rosetta:seed:config.RosettaConfig{Address:":8080", Blockchain:"app", Network:"network", Retries:3, Enable:false, Offline:false}
-default:rosetta:archive:config.RosettaConfig{Address:":8080", Blockchain:"app", Network:"network", Retries:3, Enable:false, Offline:false}
+default:rosetta:validator:rosetta.address:":8080"
+default:rosetta:validator:rosetta.blockchain:"app"
+default:rosetta:validator:rosetta.enable:false
+default:rosetta:validator:rosetta.network:"network"
+default:rosetta:validator:rosetta.offline:false
+default:rosetta:validator:rosetta.retries:3
+default:rosetta:full:rosetta.address:":8080"
+default:rosetta:full:rosetta.blockchain:"app"
+default:rosetta:full:rosetta.enable:false
+default:rosetta:full:rosetta.network:"network"
+default:rosetta:full:rosetta.offline:false
+default:rosetta:full:rosetta.retries:3
+default:rosetta:seed:rosetta.address:":8080"
+default:rosetta:seed:rosetta.blockchain:"app"
+default:rosetta:seed:rosetta.enable:false
+default:rosetta:seed:rosetta.network:"network"
+default:rosetta:seed:rosetta.offline:false
+default:rosetta:seed:rosetta.retries:3
+default:rosetta:archive:rosetta.address:":8080"
+default:rosetta:archive:rosetta.blockchain:"app"
+default:rosetta:archive:rosetta.enable:false
+default:rosetta:archive:rosetta.network:"network"
+default:rosetta:archive:rosetta.offline:false
+default:rosetta:archive:rosetta.retries:3
 section:state-commit
 key:state-commit.flatkv.enable-read-write-metrics
 key:state-commit.sc-async-commit-buffer
@@ -216,10 +636,86 @@ key:state-commit.sc-snapshot-write-rate-mbps
 key:state-commit.sc-snapshot-writer-limit
 key:state-commit.sc-write-mode
 key:state-commit.sc-write-mode-enable-auto
-default:state-commit:validator:app.stateCommitSchema{Enable:true, Directory:"", AsyncCommitBuffer:100, SnapshotKeepRecent:0x1, SnapshotInterval:0x2710, SnapshotMinTimeInterval:0xe10, SnapshotWriterLimit:4, SnapshotPrefetchThreshold:0.8, SnapshotWriteRateMBps:100, HistoricalProofMaxInFlight:1, HistoricalProofRateLimit:1, HistoricalProofBurst:1, WriteMode:"memiavl_only", WriteModeEnableAuto:true, HashLoggerEnable:true, HashLoggerDirectory:"", HashLoggerBlocksToRetain:0x0, HashLoggerTargetFileSize:0x1000000, HashLoggerMaxDiskSize:0x400000000, FlatKV:app.stateCommitFlatKVSchema{EnableReadWriteMetrics:false}}
-default:state-commit:full:app.stateCommitSchema{Enable:true, Directory:"", AsyncCommitBuffer:100, SnapshotKeepRecent:0x1, SnapshotInterval:0x2710, SnapshotMinTimeInterval:0xe10, SnapshotWriterLimit:4, SnapshotPrefetchThreshold:0.8, SnapshotWriteRateMBps:100, HistoricalProofMaxInFlight:1, HistoricalProofRateLimit:1, HistoricalProofBurst:1, WriteMode:"memiavl_only", WriteModeEnableAuto:true, HashLoggerEnable:true, HashLoggerDirectory:"", HashLoggerBlocksToRetain:0x0, HashLoggerTargetFileSize:0x1000000, HashLoggerMaxDiskSize:0x400000000, FlatKV:app.stateCommitFlatKVSchema{EnableReadWriteMetrics:false}}
-default:state-commit:seed:app.stateCommitSchema{Enable:true, Directory:"", AsyncCommitBuffer:100, SnapshotKeepRecent:0x1, SnapshotInterval:0x2710, SnapshotMinTimeInterval:0xe10, SnapshotWriterLimit:4, SnapshotPrefetchThreshold:0.8, SnapshotWriteRateMBps:100, HistoricalProofMaxInFlight:1, HistoricalProofRateLimit:1, HistoricalProofBurst:1, WriteMode:"memiavl_only", WriteModeEnableAuto:true, HashLoggerEnable:true, HashLoggerDirectory:"", HashLoggerBlocksToRetain:0x0, HashLoggerTargetFileSize:0x1000000, HashLoggerMaxDiskSize:0x400000000, FlatKV:app.stateCommitFlatKVSchema{EnableReadWriteMetrics:false}}
-default:state-commit:archive:app.stateCommitSchema{Enable:true, Directory:"", AsyncCommitBuffer:100, SnapshotKeepRecent:0x1, SnapshotInterval:0x2710, SnapshotMinTimeInterval:0xe10, SnapshotWriterLimit:4, SnapshotPrefetchThreshold:0.8, SnapshotWriteRateMBps:100, HistoricalProofMaxInFlight:1, HistoricalProofRateLimit:1, HistoricalProofBurst:1, WriteMode:"memiavl_only", WriteModeEnableAuto:true, HashLoggerEnable:true, HashLoggerDirectory:"", HashLoggerBlocksToRetain:0x0, HashLoggerTargetFileSize:0x1000000, HashLoggerMaxDiskSize:0x400000000, FlatKV:app.stateCommitFlatKVSchema{EnableReadWriteMetrics:false}}
+default:state-commit:validator:state-commit.flatkv.enable-read-write-metrics:false
+default:state-commit:validator:state-commit.sc-async-commit-buffer:100
+default:state-commit:validator:state-commit.sc-directory:""
+default:state-commit:validator:state-commit.sc-enable:true
+default:state-commit:validator:state-commit.sc-hash-logger-blocks-to-retain:0x0
+default:state-commit:validator:state-commit.sc-hash-logger-directory:""
+default:state-commit:validator:state-commit.sc-hash-logger-enable:true
+default:state-commit:validator:state-commit.sc-hash-logger-max-disk-size:0x400000000
+default:state-commit:validator:state-commit.sc-hash-logger-target-file-size:0x1000000
+default:state-commit:validator:state-commit.sc-historical-proof-burst:1
+default:state-commit:validator:state-commit.sc-historical-proof-max-inflight:1
+default:state-commit:validator:state-commit.sc-historical-proof-rate-limit:1
+default:state-commit:validator:state-commit.sc-keep-recent:0x1
+default:state-commit:validator:state-commit.sc-snapshot-interval:0x2710
+default:state-commit:validator:state-commit.sc-snapshot-min-time-interval:0xe10
+default:state-commit:validator:state-commit.sc-snapshot-prefetch-threshold:0.8
+default:state-commit:validator:state-commit.sc-snapshot-write-rate-mbps:100
+default:state-commit:validator:state-commit.sc-snapshot-writer-limit:4
+default:state-commit:validator:state-commit.sc-write-mode:"memiavl_only"
+default:state-commit:validator:state-commit.sc-write-mode-enable-auto:true
+default:state-commit:full:state-commit.flatkv.enable-read-write-metrics:false
+default:state-commit:full:state-commit.sc-async-commit-buffer:100
+default:state-commit:full:state-commit.sc-directory:""
+default:state-commit:full:state-commit.sc-enable:true
+default:state-commit:full:state-commit.sc-hash-logger-blocks-to-retain:0x0
+default:state-commit:full:state-commit.sc-hash-logger-directory:""
+default:state-commit:full:state-commit.sc-hash-logger-enable:true
+default:state-commit:full:state-commit.sc-hash-logger-max-disk-size:0x400000000
+default:state-commit:full:state-commit.sc-hash-logger-target-file-size:0x1000000
+default:state-commit:full:state-commit.sc-historical-proof-burst:1
+default:state-commit:full:state-commit.sc-historical-proof-max-inflight:1
+default:state-commit:full:state-commit.sc-historical-proof-rate-limit:1
+default:state-commit:full:state-commit.sc-keep-recent:0x1
+default:state-commit:full:state-commit.sc-snapshot-interval:0x2710
+default:state-commit:full:state-commit.sc-snapshot-min-time-interval:0xe10
+default:state-commit:full:state-commit.sc-snapshot-prefetch-threshold:0.8
+default:state-commit:full:state-commit.sc-snapshot-write-rate-mbps:100
+default:state-commit:full:state-commit.sc-snapshot-writer-limit:4
+default:state-commit:full:state-commit.sc-write-mode:"memiavl_only"
+default:state-commit:full:state-commit.sc-write-mode-enable-auto:true
+default:state-commit:seed:state-commit.flatkv.enable-read-write-metrics:false
+default:state-commit:seed:state-commit.sc-async-commit-buffer:100
+default:state-commit:seed:state-commit.sc-directory:""
+default:state-commit:seed:state-commit.sc-enable:true
+default:state-commit:seed:state-commit.sc-hash-logger-blocks-to-retain:0x0
+default:state-commit:seed:state-commit.sc-hash-logger-directory:""
+default:state-commit:seed:state-commit.sc-hash-logger-enable:true
+default:state-commit:seed:state-commit.sc-hash-logger-max-disk-size:0x400000000
+default:state-commit:seed:state-commit.sc-hash-logger-target-file-size:0x1000000
+default:state-commit:seed:state-commit.sc-historical-proof-burst:1
+default:state-commit:seed:state-commit.sc-historical-proof-max-inflight:1
+default:state-commit:seed:state-commit.sc-historical-proof-rate-limit:1
+default:state-commit:seed:state-commit.sc-keep-recent:0x1
+default:state-commit:seed:state-commit.sc-snapshot-interval:0x2710
+default:state-commit:seed:state-commit.sc-snapshot-min-time-interval:0xe10
+default:state-commit:seed:state-commit.sc-snapshot-prefetch-threshold:0.8
+default:state-commit:seed:state-commit.sc-snapshot-write-rate-mbps:100
+default:state-commit:seed:state-commit.sc-snapshot-writer-limit:4
+default:state-commit:seed:state-commit.sc-write-mode:"memiavl_only"
+default:state-commit:seed:state-commit.sc-write-mode-enable-auto:true
+default:state-commit:archive:state-commit.flatkv.enable-read-write-metrics:false
+default:state-commit:archive:state-commit.sc-async-commit-buffer:100
+default:state-commit:archive:state-commit.sc-directory:""
+default:state-commit:archive:state-commit.sc-enable:true
+default:state-commit:archive:state-commit.sc-hash-logger-blocks-to-retain:0x0
+default:state-commit:archive:state-commit.sc-hash-logger-directory:""
+default:state-commit:archive:state-commit.sc-hash-logger-enable:true
+default:state-commit:archive:state-commit.sc-hash-logger-max-disk-size:0x400000000
+default:state-commit:archive:state-commit.sc-hash-logger-target-file-size:0x1000000
+default:state-commit:archive:state-commit.sc-historical-proof-burst:1
+default:state-commit:archive:state-commit.sc-historical-proof-max-inflight:1
+default:state-commit:archive:state-commit.sc-historical-proof-rate-limit:1
+default:state-commit:archive:state-commit.sc-keep-recent:0x1
+default:state-commit:archive:state-commit.sc-snapshot-interval:0x2710
+default:state-commit:archive:state-commit.sc-snapshot-min-time-interval:0xe10
+default:state-commit:archive:state-commit.sc-snapshot-prefetch-threshold:0.8
+default:state-commit:archive:state-commit.sc-snapshot-write-rate-mbps:100
+default:state-commit:archive:state-commit.sc-snapshot-writer-limit:4
+default:state-commit:archive:state-commit.sc-write-mode:"memiavl_only"
+default:state-commit:archive:state-commit.sc-write-mode-enable-auto:true
 section:state-store
 key:state-store.evm-ss-db-directory
 key:state-store.evm-ss-separate-dbs
@@ -232,18 +728,66 @@ key:state-store.ss-enable-read-write-metrics
 key:state-store.ss-import-num-workers
 key:state-store.ss-keep-recent
 key:state-store.ss-prune-interval
-default:state-store:validator:app.stateStoreSchema{Enable:true, DBDirectory:"", Backend:"pebbledb", AsyncWriteBuffer:100, KeepRecent:100000, PruneIntervalSeconds:600, ImportNumWorkers:1, EnableReadWriteMetrics:false, EVMDBDirectory:"", SeparateEVMSubDBs:false, EVMSplit:false}
-default:state-store:full:app.stateStoreSchema{Enable:true, DBDirectory:"", Backend:"pebbledb", AsyncWriteBuffer:100, KeepRecent:100000, PruneIntervalSeconds:600, ImportNumWorkers:1, EnableReadWriteMetrics:false, EVMDBDirectory:"", SeparateEVMSubDBs:false, EVMSplit:false}
-default:state-store:seed:app.stateStoreSchema{Enable:true, DBDirectory:"", Backend:"pebbledb", AsyncWriteBuffer:100, KeepRecent:100000, PruneIntervalSeconds:600, ImportNumWorkers:1, EnableReadWriteMetrics:false, EVMDBDirectory:"", SeparateEVMSubDBs:false, EVMSplit:false}
-default:state-store:archive:app.stateStoreSchema{Enable:true, DBDirectory:"", Backend:"pebbledb", AsyncWriteBuffer:100, KeepRecent:100000, PruneIntervalSeconds:600, ImportNumWorkers:1, EnableReadWriteMetrics:false, EVMDBDirectory:"", SeparateEVMSubDBs:false, EVMSplit:false}
+default:state-store:validator:state-store.evm-ss-db-directory:""
+default:state-store:validator:state-store.evm-ss-separate-dbs:false
+default:state-store:validator:state-store.evm-ss-split:false
+default:state-store:validator:state-store.ss-async-write-buffer:100
+default:state-store:validator:state-store.ss-backend:"pebbledb"
+default:state-store:validator:state-store.ss-db-directory:""
+default:state-store:validator:state-store.ss-enable:true
+default:state-store:validator:state-store.ss-enable-read-write-metrics:false
+default:state-store:validator:state-store.ss-import-num-workers:1
+default:state-store:validator:state-store.ss-keep-recent:100000
+default:state-store:validator:state-store.ss-prune-interval:600
+default:state-store:full:state-store.evm-ss-db-directory:""
+default:state-store:full:state-store.evm-ss-separate-dbs:false
+default:state-store:full:state-store.evm-ss-split:false
+default:state-store:full:state-store.ss-async-write-buffer:100
+default:state-store:full:state-store.ss-backend:"pebbledb"
+default:state-store:full:state-store.ss-db-directory:""
+default:state-store:full:state-store.ss-enable:true
+default:state-store:full:state-store.ss-enable-read-write-metrics:false
+default:state-store:full:state-store.ss-import-num-workers:1
+default:state-store:full:state-store.ss-keep-recent:100000
+default:state-store:full:state-store.ss-prune-interval:600
+default:state-store:seed:state-store.evm-ss-db-directory:""
+default:state-store:seed:state-store.evm-ss-separate-dbs:false
+default:state-store:seed:state-store.evm-ss-split:false
+default:state-store:seed:state-store.ss-async-write-buffer:100
+default:state-store:seed:state-store.ss-backend:"pebbledb"
+default:state-store:seed:state-store.ss-db-directory:""
+default:state-store:seed:state-store.ss-enable:true
+default:state-store:seed:state-store.ss-enable-read-write-metrics:false
+default:state-store:seed:state-store.ss-import-num-workers:1
+default:state-store:seed:state-store.ss-keep-recent:100000
+default:state-store:seed:state-store.ss-prune-interval:600
+default:state-store:archive:state-store.evm-ss-db-directory:""
+default:state-store:archive:state-store.evm-ss-separate-dbs:false
+default:state-store:archive:state-store.evm-ss-split:false
+default:state-store:archive:state-store.ss-async-write-buffer:100
+default:state-store:archive:state-store.ss-backend:"pebbledb"
+default:state-store:archive:state-store.ss-db-directory:""
+default:state-store:archive:state-store.ss-enable:true
+default:state-store:archive:state-store.ss-enable-read-write-metrics:false
+default:state-store:archive:state-store.ss-import-num-workers:1
+default:state-store:archive:state-store.ss-keep-recent:100000
+default:state-store:archive:state-store.ss-prune-interval:600
 section:state-sync
 key:state-sync.snapshot-directory
 key:state-sync.snapshot-interval
 key:state-sync.snapshot-keep-recent
-default:state-sync:validator:config.StateSyncConfig{SnapshotInterval:0x0, SnapshotKeepRecent:0x2, SnapshotDirectory:""}
-default:state-sync:full:config.StateSyncConfig{SnapshotInterval:0x0, SnapshotKeepRecent:0x2, SnapshotDirectory:""}
-default:state-sync:seed:config.StateSyncConfig{SnapshotInterval:0x0, SnapshotKeepRecent:0x2, SnapshotDirectory:""}
-default:state-sync:archive:config.StateSyncConfig{SnapshotInterval:0x0, SnapshotKeepRecent:0x2, SnapshotDirectory:""}
+default:state-sync:validator:state-sync.snapshot-directory:""
+default:state-sync:validator:state-sync.snapshot-interval:0x0
+default:state-sync:validator:state-sync.snapshot-keep-recent:0x2
+default:state-sync:full:state-sync.snapshot-directory:""
+default:state-sync:full:state-sync.snapshot-interval:0x0
+default:state-sync:full:state-sync.snapshot-keep-recent:0x2
+default:state-sync:seed:state-sync.snapshot-directory:""
+default:state-sync:seed:state-sync.snapshot-interval:0x0
+default:state-sync:seed:state-sync.snapshot-keep-recent:0x2
+default:state-sync:archive:state-sync.snapshot-directory:""
+default:state-sync:archive:state-sync.snapshot-interval:0x0
+default:state-sync:archive:state-sync.snapshot-keep-recent:0x2
 section:telemetry
 key:telemetry.enable-hostname
 key:telemetry.enable-hostname-label
@@ -252,15 +796,47 @@ key:telemetry.enabled
 key:telemetry.global-labels
 key:telemetry.prometheus-retention-time
 key:telemetry.service-name
-default:telemetry:validator:cosmosbase.telemetrySchema{ServiceName:"", Enabled:true, EnableHostname:false, EnableHostnameLabel:false, EnableServiceLabel:false, PrometheusRetentionTime:7200, GlobalLabels:[]interface {}{}}
-default:telemetry:full:cosmosbase.telemetrySchema{ServiceName:"", Enabled:true, EnableHostname:false, EnableHostnameLabel:false, EnableServiceLabel:false, PrometheusRetentionTime:7200, GlobalLabels:[]interface {}{}}
-default:telemetry:seed:cosmosbase.telemetrySchema{ServiceName:"", Enabled:true, EnableHostname:false, EnableHostnameLabel:false, EnableServiceLabel:false, PrometheusRetentionTime:7200, GlobalLabels:[]interface {}{}}
-default:telemetry:archive:cosmosbase.telemetrySchema{ServiceName:"", Enabled:true, EnableHostname:false, EnableHostnameLabel:false, EnableServiceLabel:false, PrometheusRetentionTime:7200, GlobalLabels:[]interface {}{}}
+default:telemetry:validator:telemetry.enable-hostname:false
+default:telemetry:validator:telemetry.enable-hostname-label:false
+default:telemetry:validator:telemetry.enable-service-label:false
+default:telemetry:validator:telemetry.enabled:true
+default:telemetry:validator:telemetry.global-labels:[]interface {}{}
+default:telemetry:validator:telemetry.prometheus-retention-time:7200
+default:telemetry:validator:telemetry.service-name:""
+default:telemetry:full:telemetry.enable-hostname:false
+default:telemetry:full:telemetry.enable-hostname-label:false
+default:telemetry:full:telemetry.enable-service-label:false
+default:telemetry:full:telemetry.enabled:true
+default:telemetry:full:telemetry.global-labels:[]interface {}{}
+default:telemetry:full:telemetry.prometheus-retention-time:7200
+default:telemetry:full:telemetry.service-name:""
+default:telemetry:seed:telemetry.enable-hostname:false
+default:telemetry:seed:telemetry.enable-hostname-label:false
+default:telemetry:seed:telemetry.enable-service-label:false
+default:telemetry:seed:telemetry.enabled:true
+default:telemetry:seed:telemetry.global-labels:[]interface {}{}
+default:telemetry:seed:telemetry.prometheus-retention-time:7200
+default:telemetry:seed:telemetry.service-name:""
+default:telemetry:archive:telemetry.enable-hostname:false
+default:telemetry:archive:telemetry.enable-hostname-label:false
+default:telemetry:archive:telemetry.enable-service-label:false
+default:telemetry:archive:telemetry.enabled:true
+default:telemetry:archive:telemetry.global-labels:[]interface {}{}
+default:telemetry:archive:telemetry.prometheus-retention-time:7200
+default:telemetry:archive:telemetry.service-name:""
 section:wasm
 key:wasm.memory_cache_size
 key:wasm.query_gas_limit
 key:wasm.simulation_gas_limit
-default:wasm:validator:wasm.wasmSchema{MemoryCacheSize:0x64, QueryGasLimit:0x2dc6c0, SimulationGasLimit:""}
-default:wasm:full:wasm.wasmSchema{MemoryCacheSize:0x64, QueryGasLimit:0x2dc6c0, SimulationGasLimit:""}
-default:wasm:seed:wasm.wasmSchema{MemoryCacheSize:0x64, QueryGasLimit:0x2dc6c0, SimulationGasLimit:""}
-default:wasm:archive:wasm.wasmSchema{MemoryCacheSize:0x64, QueryGasLimit:0x2dc6c0, SimulationGasLimit:""}
+default:wasm:validator:wasm.memory_cache_size:0x64
+default:wasm:validator:wasm.query_gas_limit:0x2dc6c0
+default:wasm:validator:wasm.simulation_gas_limit:""
+default:wasm:full:wasm.memory_cache_size:0x64
+default:wasm:full:wasm.query_gas_limit:0x2dc6c0
+default:wasm:full:wasm.simulation_gas_limit:""
+default:wasm:seed:wasm.memory_cache_size:0x64
+default:wasm:seed:wasm.query_gas_limit:0x2dc6c0
+default:wasm:seed:wasm.simulation_gas_limit:""
+default:wasm:archive:wasm.memory_cache_size:0x64
+default:wasm:archive:wasm.query_gas_limit:0x2dc6c0
+default:wasm:archive:wasm.simulation_gas_limit:""

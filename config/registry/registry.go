@@ -242,13 +242,40 @@ func Surface() string {
 		for _, k := range s.Keys {
 			fmt.Fprintf(&b, "key:%s\n", k)
 		}
-		// The baseline is part of the shape: a changed default is a changed contract for every
-		// node that never wrote the key. Rendered per mode, since a baseline may vary by mode.
+		// The baseline is part of the shape: a changed default is a changed contract for every node
+		// that never wrote the key. Rendered per mode, since a baseline may vary by mode, and per key
+		// rather than as one dump of the section's struct, so a changed default is one changed line
+		// instead of one changed line four hundred characters wide.
 		for _, m := range Modes() {
-			fmt.Fprintf(&b, "default:%s:%s:%#v\n", s.Name, m, s.Defaults(m))
+			values, err := sectionValues(s.Name, s.Defaults(m))
+			if err != nil {
+				fmt.Fprintf(&b, "default:%s:%s:unreadable:%v\n", s.Name, m, err)
+				continue
+			}
+			for _, k := range s.Keys {
+				fmt.Fprintf(&b, "default:%s:%s:%s:%s\n", s.Name, m, k, renderBaseline(k, values[k]))
+			}
 		}
 	}
 	return b.String()
+}
+
+// hostDerivedMarker stands where a host-derived baseline's value would go.
+//
+// The value itself cannot be recorded: it is read off the machine that did the recording, so the record
+// would hold one host's processor count and fail on every other. What is recorded instead is that the
+// key has one, which still moves when a key stops or starts being derived.
+//
+// The cost is that a change to the derivation is invisible here. The owning package's own test is what
+// covers that, by computing the same derivation and requiring the baseline to match it.
+const hostDerivedMarker = "<derived from the host>"
+
+// renderBaseline renders one key's baseline for the record.
+func renderBaseline(key string, value any) string {
+	if HostDerived(key) {
+		return hostDerivedMarker
+	}
+	return fmt.Sprintf("%#v", value)
 }
 
 // Fingerprint hashes every registration, so a key added, renamed or retyped changes it.
@@ -435,6 +462,7 @@ func Reset() {
 	envCannotDeliver = map[string]string{}
 	zeroWhenAbsent = map[string]bool{}
 	valueWhenAbsent = map[string]any{}
+	hostDerived = map[string]string{}
 }
 
 // EnvPrefix is the environment namespace for every derived key.

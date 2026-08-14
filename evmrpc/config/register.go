@@ -19,6 +19,13 @@ func init() {
 	// these per mode, so the baseline matches a node it provisioned, while a node whose file lacks them
 	// serves both interfaces whatever kind of node it is. A migration has to carry what the node runs,
 	// which is that, so the value is named rather than derived from either rule.
+	// Both scale with the machine's processor count, so a file generated on one host and used on
+	// another carries sizing for the wrong box.
+	registry.DeclareHostDerived(SectionName, "evm.worker_pool_size",
+		"twice the host's processor count, capped at 64")
+	registry.DeclareHostDerived(SectionName, "evm.max_concurrent_simulation_calls",
+		"the host's processor count")
+
 	registry.DeclareValueWhenAbsent(SectionName, flagHTTPEnabled, DefaultConfig.HTTPEnabled)
 	registry.DeclareValueWhenAbsent(SectionName, flagWSEnabled, DefaultConfig.WSEnabled)
 }
