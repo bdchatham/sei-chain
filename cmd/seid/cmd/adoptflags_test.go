@@ -62,6 +62,8 @@ func TestTheFlagLayerAnswersForTheKeysItIsThereFor(t *testing.T) {
 	want := []string{
 		"compaction-interval",
 		"concurrency-workers",
+		"grpc-web.address",
+		"grpc-web.enable",
 		"grpc.address",
 		"grpc.enable",
 		"halt-height",
@@ -92,10 +94,10 @@ func TestTheFlagLayerAnswersForTheKeysItIsThereFor(t *testing.T) {
 
 // TestABoundFlagAnswersAheadOfAKeysZero is the case that makes the layer order load-bearing.
 //
-// Nine keys are both bound to a start flag and declared as resolving to their zero when nothing
-// supplies them. Both are true: the reader does assign straight from its lookup, and the resolution
-// does reach the flag's default before the lookup comes back empty. The flag answers first, so the
-// zero is not what such a node runs.
+// Some keys are both bound to a start flag and declared as resolving to their zero when nothing
+// supplies them. Both are true of such a key: the reader does assign straight from its lookup, and the
+// resolution does reach the flag's default before that lookup comes back empty. The flag answers
+// first, so the zero is not what such a node runs.
 //
 // Getting that order backwards is not a cosmetic difference. grpc.enable would adopt as false on a node
 // whose app.toml omits it, taking the gRPC server off a node that has been serving it, and pruning

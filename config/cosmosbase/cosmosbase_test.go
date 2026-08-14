@@ -343,7 +343,7 @@ func TestTheLabelSetIsRefusedFromTheEnvironment(t *testing.T) {
 }
 
 // The value a migration writes for a key an operator's files do not carry, for each upstream section.
-// Nine of these keys are also bound start flags, whose registration default reaches the reader first, so a
+// Some of these keys are also bound start flags, whose registration default reaches the reader first, so a
 // migration consults the flag before it consults this. The declaration describes the reader.
 
 func TestTheBaseZeroWhenAbsentDeclarationMatchesItsReader(t *testing.T) {
@@ -375,5 +375,69 @@ func TestTheStateSyncZeroWhenAbsentDeclarationMatchesItsReader(t *testing.T) {
 	configtest.CheckZeroWhenAbsentMatchesTheReader(t, "state-sync", func(o configtest.AppOpts) (any, error) {
 		c, err := readServerConfig(o)
 		return c.StateSync, err
+	})
+}
+
+// TestTheGRPCWebSchemaDescribesTheReaderItStandsInFor holds the proxy's keys against GetConfig.
+func TestTheGRPCWebSchemaDescribesTheReaderItStandsInFor(t *testing.T) {
+	// The section name stays a literal. The wiring record reads it from this call's second argument.
+	configtest.CheckSchemaMatchesTheReader(t, "grpc-web", configtest.SchemaCheck{
+		Read: func(opts configtest.AppOpts) (any, error) {
+			cfg, err := readServerConfig(opts)
+			if err != nil {
+				return nil, err
+			}
+			return cfg.GRPCWeb, nil
+		},
+		// enable is probed with true even though its default is already true, because the probe has to
+		// differ from what the reader produces for an empty configuration, and this reader assigns
+		// straight from its lookup: absent resolves to false, not to the default beside it.
+		Probe: map[string]any{
+			"grpc-web.enable":               true,
+			"grpc-web.address":              "127.0.0.1:9092",
+			"grpc-web.enable-unsafe-cors":   true,
+			"grpc-web.max-open-connections": uint(64),
+		},
+	})
+}
+
+// TestTheRosettaSchemaDescribesTheReaderItStandsInFor holds the same for the Rosetta API.
+func TestTheRosettaSchemaDescribesTheReaderItStandsInFor(t *testing.T) {
+	configtest.CheckSchemaMatchesTheReader(t, "rosetta", configtest.SchemaCheck{
+		Read: func(opts configtest.AppOpts) (any, error) {
+			cfg, err := readServerConfig(opts)
+			if err != nil {
+				return nil, err
+			}
+			return cfg.Rosetta, nil
+		},
+		Probe: map[string]any{
+			"rosetta.enable":     true,
+			"rosetta.offline":    true,
+			"rosetta.address":    ":8081",
+			"rosetta.blockchain": "sei",
+			"rosetta.network":    "pacific-1",
+			"rosetta.retries":    9,
+		},
+	})
+}
+
+func TestTheGRPCWebZeroWhenAbsentDeclarationMatchesItsReader(t *testing.T) {
+	configtest.CheckZeroWhenAbsentMatchesTheReader(t, "grpc-web", func(o configtest.AppOpts) (any, error) {
+		cfg, err := readServerConfig(o)
+		if err != nil {
+			return nil, err
+		}
+		return cfg.GRPCWeb, nil
+	})
+}
+
+func TestTheRosettaZeroWhenAbsentDeclarationMatchesItsReader(t *testing.T) {
+	configtest.CheckZeroWhenAbsentMatchesTheReader(t, "rosetta", func(o configtest.AppOpts) (any, error) {
+		cfg, err := readServerConfig(o)
+		if err != nil {
+			return nil, err
+		}
+		return cfg.Rosetta, nil
 	})
 }

@@ -24,6 +24,8 @@ const (
 	BaseSectionName      = "base"
 	APISectionName       = "api"
 	GRPCSectionName      = "grpc"
+	GRPCWebSectionName   = "grpc-web"
+	RosettaSectionName   = "rosetta"
 	TelemetrySectionName = "telemetry"
 )
 
@@ -40,15 +42,17 @@ func init() {
 	registry.RegisterRootKeys(BaseSectionName, &srvconfig.BaseConfig{}, baseBaseline)
 	registry.RegisterSection(APISectionName, &srvconfig.APIConfig{}, apiBaseline)
 	registry.RegisterSection(GRPCSectionName, &srvconfig.GRPCConfig{}, grpcBaseline)
+	registry.RegisterSection(GRPCWebSectionName, &srvconfig.GRPCWebConfig{}, grpcWebBaseline)
+	registry.RegisterSection(RosettaSectionName, &srvconfig.RosettaConfig{}, rosettaBaseline)
 	registry.RegisterSection(TelemetrySectionName, &telemetrySchema{}, telemetryBaseline)
 
 	// The label set is a list of name/value pairs and the reader takes that exact type rather than casting
 	// what it finds. An environment variable carries one string, so there is no value of it the reader can
 	// use, and resolving one would install a value that stops the node.
 	// The upstream server configuration reader assigns these straight from a lookup, so a key nothing
-	// supplies resolves to the zero rather than to the default beside it. Nine of them are also bound
-	// start flags, whose registration default reaches the reader first, so a migration consults the flag
-	// before it consults this. The declaration describes the reader; what a node actually resolves is
+	// supplies resolves to the zero rather than to the default beside it. Some are also bound start flags,
+	// whose registration default reaches the reader first, so a migration consults the flag before it
+	// consults this. The declaration describes the reader; what a node actually resolves is
 	// decided by which channel answers.
 	registry.DeclareZeroWhenAbsent(BaseSectionName,
 		"concurrency-workers", "inter-block-cache", "minimum-gas-prices", "occ-enabled",
@@ -59,6 +63,12 @@ func init() {
 		"api.rpc-read-timeout", "api.swagger",
 	)
 	registry.DeclareZeroWhenAbsent(GRPCSectionName, "grpc.address", "grpc.enable")
+	registry.DeclareZeroWhenAbsent(GRPCWebSectionName, "grpc-web.address", "grpc-web.enable")
+	// Neither rosetta.enable nor rosetta.offline is here: both default to false already, so for those two
+	// the clobbered value and the default are the same thing.
+	registry.DeclareZeroWhenAbsent(RosettaSectionName,
+		"rosetta.address", "rosetta.blockchain", "rosetta.network", "rosetta.retries",
+	)
 	registry.DeclareZeroWhenAbsent(StateSyncSectionName, "state-sync.snapshot-keep-recent")
 	registry.DeclareZeroWhenAbsent(TelemetrySectionName,
 		"telemetry.enabled", "telemetry.prometheus-retention-time",
@@ -126,13 +136,26 @@ func apiBaseline(registry.Mode) any { return srvconfig.DefaultConfig().API }
 
 func grpcBaseline(registry.Mode) any { return srvconfig.DefaultConfig().GRPC }
 
+// grpcWebBaseline and rosettaBaseline are the last two sections app.toml carries.
+//
+// Both register their upstream type directly, for the same reason as the two above, and both take the same
+// values for every mode: whether a node serves the gRPC-web proxy or the Rosetta API is an operator's
+// decision about what they expose, which no node mode implies.
+//
+// Neither interface is reached by the application's own construction, so nothing recorded their keys as
+// read until they were declared. That is what left them the last undeclared sections rather than anything
+// about the settings themselves.
+func grpcWebBaseline(registry.Mode) any { return srvconfig.DefaultConfig().GRPCWeb }
+
+func rosettaBaseline(registry.Mode) any { return srvconfig.DefaultConfig().Rosetta }
+
 // baseBaseline is what the node-wide settings resolve to for a node that has written nothing.
 //
 // The upstream defaults, which is what seid init writes into app.toml. Every one of these keys is read
 // with a casting getter, and an absent key casts to zero, so a node whose app.toml predates one of them
 // runs the zero rather than the default beside it, and the DeclareZeroWhenAbsent call above names which.
 // Five of the thirteen have a non-zero default, and the pruning strategy is the one that matters most,
-// since an empty strategy is not a strategy. Nine of these keys are also bound to a start flag, whose
+// since an empty strategy is not a strategy. Several of these keys are also bound to a start flag, whose
 // default the resolution reaches before the lookup comes back empty, so on a node running the start
 // command the zero never arrives for them.
 //

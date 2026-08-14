@@ -120,6 +120,13 @@ var readByTheServerConfigReader = map[string]string{
 	"grpc": "read only by the upstream server configuration reader at start time. " +
 		"TestTheGRPCSchemaDescribesTheReaderItStandsInFor writes a value under each and confirms which " +
 		"setting changes",
+	"grpc-web": "read only by the upstream server configuration reader at start time; the proxy it " +
+		"configures is started there and never reached by the application's creation. " +
+		"TestTheGRPCWebSchemaDescribesTheReaderItStandsInFor writes a value under each and confirms " +
+		"which setting changes",
+	"rosetta": "read only by the upstream server configuration reader at start time, the same way. " +
+		"TestTheRosettaSchemaDescribesTheReaderItStandsInFor writes a value under each and confirms " +
+		"which setting changes",
 	"telemetry": "read only by the upstream server configuration reader at start time. " +
 		"TestTheTelemetrySchemaDescribesTheReaderItStandsInFor writes a value under each and confirms " +
 		"which setting changes",
