@@ -8,6 +8,4 @@
 # Read through the same source the migration reads, so this measures what that
 # migration would actually see rather than what a struct's tags suggest.
 
-autobahn-config-file
-hash-vault-disabled-unsafe
-log-level
+(none: every key these files carry has a section that owns it)

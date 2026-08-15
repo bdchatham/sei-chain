@@ -92,7 +92,7 @@ func init() {
 
 	// The keys at the top of config.toml, which carry no section of their own. The name is for lookups
 	// and reports and is not part of any key, the same way base names app.toml's root keys.
-	registry.RegisterRootKeysExcluding(NodeSectionName, &tmcfg.BaseConfig{}, nodeBaseline,
+	registry.RegisterRootKeysExcluding(NodeSectionName, &nodeSchema{}, nodeBaseline,
 		nodeNotConfiguration())
 
 	// The moniker's default is the machine's host name, so two nodes of the same release resolve
@@ -239,7 +239,28 @@ func consensusNotConfiguration() map[string]string {
 // varied by it: sei.toml records the mode separately and a diagnostic compares the two, so resolving one
 // from the other would make that comparison compare a thing with itself.
 func nodeBaseline(registry.Mode) any {
-	return tmcfg.DefaultBaseConfig()
+	whole := tmcfg.DefaultConfig()
+	return nodeSchema{
+		BaseConfig:              whole.BaseConfig,
+		AutobahnConfigFile:      whole.AutobahnConfigFile,
+		HashVaultDisabledUnsafe: whole.HashVaultDisabledUnsafe,
+	}
+}
+
+// nodeSchema is every key at the top of config.toml, which two structs supply between them.
+//
+// tmcfg.BaseConfig holds most of them and tmcfg.Config holds two of its own, at the same level, because
+// Config squashes BaseConfig into itself. Registering BaseConfig alone therefore leaves those two
+// undeclared, and squashing it here is what puts the whole top of the file under one section. The decode
+// reads them at the same level for the same reason, so the spelling this produces is the spelling that
+// arrives.
+type nodeSchema struct {
+	tmcfg.BaseConfig `mapstructure:",squash"`
+
+	// The routing config a node reads when it runs the Autobahn executor, read by app.New.
+	AutobahnConfigFile string `mapstructure:"autobahn-config-file"`
+	// The app-hash equivocation guard, off means the guard is disabled.
+	HashVaultDisabledUnsafe bool `mapstructure:"hash-vault-disabled-unsafe"`
 }
 
 // nodeNotConfiguration names the fields of the root config an operator is not given.
@@ -254,9 +275,7 @@ func nodeNotConfiguration() map[string]string {
 		"comment says it no longer has any effect"
 
 	return map[string]string{
-		"home": rootDirectoryIsNotConfiguration,
-		"log-level": "read off the struct by the boot's own handler and handed to the logger before " +
-			"resolved values are delivered, so delivering it would move the field and not the logging",
+		"home":         rootDirectoryIsNotConfiguration,
 		"abci":         deprecated,
 		"filter-peers": deprecated,
 	}
