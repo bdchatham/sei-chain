@@ -78,3 +78,25 @@ func TestATendermintValueTheNodeRefusesLeavesTheConfigurationAlone(t *testing.T)
 			"decode. Either all of a section's values arrive or none do")
 	}
 }
+
+// TestTheDeliveryLeavesTheRootDirectoryAlone is what the root-directory exclusion buys.
+//
+// Five Tendermint sub-structs carry a RootDir tagged home, filled by SetRoot after the file is decoded.
+// Were one declared, the delivery would decode its baseline over the top, and a node whose root is the
+// empty string cannot find its data directory, its genesis file or its signing key.
+func TestTheDeliveryLeavesTheRootDirectoryAlone(t *testing.T) {
+	configtest.Isolate(t)
+	ctx := bootWithSeiToml(t, "schema_version = 1\nnode_mode = \"validator\"\n\n"+
+		"[instrumentation]\nprometheus = true\n")
+
+	if !ctx.Config.Instrumentation.Prometheus {
+		t.Fatal("the delivery did not run, so this test would pass with the root declared")
+	}
+	if ctx.Config.RootDir == "" {
+		t.Error("the node's root directory is empty after the delivery")
+	}
+	if ctx.Config.PrivValidator.RootDir == "" {
+		t.Error("the signing key's root directory is empty after the delivery. priv-validator is " +
+			"declared, so its home key would be delivered at its baseline if it were not excluded")
+	}
+}

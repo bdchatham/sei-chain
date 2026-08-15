@@ -1081,3 +1081,81 @@ func TestAHostDerivedDeclarationNeedsItsReason(t *testing.T) {
 			"record on a declaration the registry rejected")
 	}
 }
+
+// TestAnExclusionMustCoverAFieldTheStructProduces keeps a stale exclusion from reading as a live one.
+//
+// An exclusion names a key the operator must not be given. Once the field it named is gone or renamed,
+// the exclusion covers nothing and the next field to need one looks as though it already has it.
+func TestAnExclusionMustCoverAFieldTheStructProduces(t *testing.T) {
+	registry.Reset()
+	t.Cleanup(registry.Reset)
+	registry.RegisterSectionExcluding("probe", &struct {
+		Alpha string `mapstructure:"alpha"`
+		Bravo string `mapstructure:"bravo"`
+	}{}, func(registry.Mode) any {
+		return struct {
+			Alpha string `mapstructure:"alpha"`
+			Bravo string `mapstructure:"bravo"`
+		}{}
+	}, map[string]string{"probe.charlie": "a field this struct does not have"})
+
+	if len(registry.Defects()) == 0 {
+		t.Error("an exclusion naming a key the struct does not produce was accepted, so it covers " +
+			"nothing while reading as though it covers something")
+	}
+}
+
+// TestAnExclusionNeedsItsReason holds the same bar the other declarations hold.
+func TestAnExclusionNeedsItsReason(t *testing.T) {
+	registry.Reset()
+	t.Cleanup(registry.Reset)
+	registry.RegisterSectionExcluding("probe", &struct {
+		Alpha string `mapstructure:"alpha"`
+		Bravo string `mapstructure:"bravo"`
+	}{}, func(registry.Mode) any {
+		return struct {
+			Alpha string `mapstructure:"alpha"`
+			Bravo string `mapstructure:"bravo"`
+		}{}
+	}, map[string]string{"probe.bravo": ""})
+
+	if len(registry.Defects()) == 0 {
+		t.Error("an exclusion with no reason was accepted; without one it cannot be told from a key " +
+			"somebody found inconvenient")
+	}
+}
+
+// TestAnExcludedKeyIsAbsentFromTheSection is the property the exclusion exists for.
+func TestAnExcludedKeyIsAbsentFromTheSection(t *testing.T) {
+	registry.Reset()
+	t.Cleanup(registry.Reset)
+	registry.RegisterSectionExcluding("probe", &struct {
+		Alpha string `mapstructure:"alpha"`
+		Bravo string `mapstructure:"bravo"`
+	}{}, func(registry.Mode) any {
+		return struct {
+			Alpha string `mapstructure:"alpha"`
+			Bravo string `mapstructure:"bravo"`
+		}{Alpha: "a", Bravo: "b"}
+	}, map[string]string{"probe.bravo": "not something an operator writes"})
+
+	for _, d := range registry.Defects() {
+		t.Fatalf("the registration was refused: %v", d.Err)
+	}
+	section, ok := registry.Lookup("probe")
+	if !ok {
+		t.Fatal("the section did not register")
+	}
+	if strings.Join(section.Keys, ",") != "probe.alpha" {
+		t.Errorf("the section declares %v, want only probe.alpha. An excluded key that is still declared "+
+			"reaches an operator's file and is delivered from it", section.Keys)
+	}
+	// The kept key still resolves, or the exclusion has taken the section with it.
+	resolved, err := registry.Resolve(registry.ModeFull)
+	if err != nil {
+		t.Fatalf("Resolve: %v", err)
+	}
+	if got, found := resolved.Keys["probe.alpha"]; !found || got.Value != "a" {
+		t.Errorf("probe.alpha resolves to %#v (found=%v), want a", got.Value, found)
+	}
+}

@@ -103,15 +103,74 @@ func RegisterRootKeys(name string, proto any, defaults func(Mode) any) {
 	record(name, "", proto, defaults)
 }
 
+// RegisterSectionExcluding registers a section whose struct carries fields that are not configuration.
+//
+// A section normally declares every key its struct's tags produce, which is what keeps the declared
+// spelling and the reader's the same string. A few upstream structs carry a tagged field the operator
+// does not write and must not be given: the root directory is the one that matters, tagged home on five
+// Tendermint sub-structs and written by Config.SetRoot after the file is decoded. Declaring it would put
+// it in an operator's file at its default, which is empty, and delivering that would leave a node unable
+// to find its own data directory.
+//
+// Each exclusion carries the reason it is not configuration, and a name for a key the struct does not
+// produce is refused: a stale exclusion silently stops covering the field it was written for.
+func RegisterSectionExcluding(name string, proto any, defaults func(Mode) any, notConfig map[string]string) {
+	all, err := deriveKeys(name, name, proto)
+	if err != nil {
+		mu.Lock()
+		defects = append(defects, Defect{Section: name, Err: err})
+		mu.Unlock()
+		return
+	}
+	produced := map[string]bool{}
+	for _, key := range all {
+		produced[key] = true
+	}
+
+	mu.Lock()
+	for key, why := range notConfig {
+		switch {
+		case !produced[key]:
+			defects = append(defects, Defect{Section: name, Err: fmt.Errorf(
+				"excludes %q and the section's struct does not produce it; an exclusion that covers "+
+					"nothing reads as though the field it named had been dealt with", key)})
+		case why == "":
+			defects = append(defects, Defect{Section: name, Err: fmt.Errorf(
+				"excludes %q with no reason; without one it cannot be told from a key somebody found "+
+					"inconvenient", key)})
+		}
+	}
+	mu.Unlock()
+
+	kept := make([]string, 0, len(all))
+	for _, key := range all {
+		if _, excluded := notConfig[key]; !excluded {
+			kept = append(kept, key)
+		}
+	}
+	recordKeys(name, name, kept, proto, defaults)
+}
+
 // record is the one path both registrations take.
 func record(name, prefix string, proto any, defaults func(Mode) any) {
 	keys, err := deriveKeys(name, prefix, proto)
+	if err != nil {
+		mu.Lock()
+		defects = append(defects, Defect{Section: name, Err: err})
+		mu.Unlock()
+		return
+	}
+	recordKeys(name, prefix, keys, proto, defaults)
+}
 
+// recordKeys registers a section from keys already derived, which is what lets one registration drop a
+// field the operator does not write without the other having to know that is possible.
+func recordKeys(name, prefix string, keys []string, proto any, defaults func(Mode) any) {
 	mu.Lock()
 	defer mu.Unlock()
 	switch {
-	case err != nil:
-		defects = append(defects, Defect{Section: name, Err: err})
+	case len(keys) == 0:
+		defects = append(defects, Defect{Section: name, Err: fmt.Errorf("declares no keys")})
 	case defaults == nil:
 		defects = append(defects, Defect{Section: name, Err: fmt.Errorf("no baseline function")})
 	default:
