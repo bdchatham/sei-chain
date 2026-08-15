@@ -115,7 +115,18 @@ func RegisterRootKeys(name string, proto any, defaults func(Mode) any) {
 // Each exclusion carries the reason it is not configuration, and a name for a key the struct does not
 // produce is refused: a stale exclusion silently stops covering the field it was written for.
 func RegisterSectionExcluding(name string, proto any, defaults func(Mode) any, notConfig map[string]string) {
-	all, err := deriveKeys(name, name, proto)
+	registerExcluding(name, name, proto, defaults, notConfig)
+}
+
+// RegisterRootKeysExcluding is RegisterSectionExcluding for a section whose keys sit at the root of the
+// file, with no section of their own.
+func RegisterRootKeysExcluding(name string, proto any, defaults func(Mode) any, notConfig map[string]string) {
+	registerExcluding(name, "", proto, defaults, notConfig)
+}
+
+// registerExcluding is the one path both exclusion-aware registrations take.
+func registerExcluding(name, prefix string, proto any, defaults func(Mode) any, notConfig map[string]string) {
+	all, err := deriveKeys(name, prefix, proto)
 	if err != nil {
 		mu.Lock()
 		defects = append(defects, Defect{Section: name, Err: err})
@@ -148,7 +159,7 @@ func RegisterSectionExcluding(name string, proto any, defaults func(Mode) any, n
 			kept = append(kept, key)
 		}
 	}
-	recordKeys(name, name, kept, proto, defaults)
+	recordKeys(name, prefix, kept, proto, defaults)
 }
 
 // record is the one path both registrations take.
@@ -397,7 +408,7 @@ func walk(t reflect.Type, prefix string, keys *[]string) error {
 		if err != nil {
 			return err
 		}
-		if tag.DeclaresNoKey() {
+		if tag.DeclaresNoKey() || tag.Remains() {
 			continue
 		}
 
@@ -442,11 +453,21 @@ const notFromConfig = "-"
 // squashOption is the mapstructure option that promotes a field's own fields to the enclosing level.
 const squashOption = "squash"
 
+// remainOption is the mapstructure option for a field that collects every key nothing else claimed.
+//
+// Such a field declares no key of its own: it is a destination for keys, not one. Tendermint's BaseConfig
+// ends in one, which is why registering that type without this produces a field with an empty name.
+const remainOption = "remain"
+
 // fieldTag is what a field's mapstructure tag says about the key it declares.
 type fieldTag struct {
 	name   string
 	squash bool
+	remain bool
 }
+
+// Remains reports whether this field collects the keys nothing else claimed, and so declares none.
+func (t fieldTag) Remains() bool { return t.remain }
 
 // Segment is the key segment this field contributes.
 func (t fieldTag) Segment() string { return t.name }
@@ -473,9 +494,15 @@ func tagOf(f reflect.StructField, prefix string) (fieldTag, error) {
 	parts := strings.Split(raw, ",")
 	tag := fieldTag{name: parts[0]}
 	for _, opt := range parts[1:] {
-		if opt == squashOption {
+		switch opt {
+		case squashOption:
 			tag.squash = true
+		case remainOption:
+			tag.remain = true
 		}
+	}
+	if tag.Remains() {
+		return tag, nil
 	}
 
 	if tag.Squashed() {

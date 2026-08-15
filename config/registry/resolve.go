@@ -209,7 +209,7 @@ func walkValues(v reflect.Value, prefix string, out map[string]any) error {
 		if err != nil {
 			return err
 		}
-		if tag.DeclaresNoKey() {
+		if tag.DeclaresNoKey() || tag.Remains() {
 			continue
 		}
 

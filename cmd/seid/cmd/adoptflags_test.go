@@ -58,10 +58,20 @@ func TestEveryBoundFlagsDefaultReadsAsItsKeysType(t *testing.T) {
 // and every key would fall through. So this names the keys a start flag actually carries. A key
 // leaving this list is a key whose value now comes from somewhere else, which changes what an adopted
 // file holds for it.
+//
+// Both halves of a node's configuration are represented. The start command binds its own flags and then
+// calls AddNodeFlags, which binds Tendermint's, so declaring a config.toml section can put a key here
+// without anything in this repository being edited.
 func TestTheFlagLayerAnswersForTheKeysItIsThereFor(t *testing.T) {
 	want := []string{
 		"compaction-interval",
 		"concurrency-workers",
+		"consensus.create-empty-blocks",
+		"consensus.create-empty-blocks-interval",
+		"consensus.double-sign-check-height",
+		"consensus.gossip-tx-key-only",
+		"db-backend",
+		"db-dir",
 		"grpc-web.address",
 		"grpc-web.enable",
 		"grpc.address",
@@ -71,10 +81,21 @@ func TestTheFlagLayerAnswersForTheKeysItIsThereFor(t *testing.T) {
 		"inter-block-cache",
 		"min-retain-blocks",
 		"minimum-gas-prices",
+		"mode",
+		"moniker",
+		"p2p.laddr",
+		"p2p.persistent-peers",
+		"p2p.pex",
+		"p2p.private-peer-ids",
+		"p2p.upnp",
+		"proxy-app",
 		"pruning",
 		"pruning-interval",
 		"pruning-keep-every",
 		"pruning-keep-recent",
+		"rpc.laddr",
+		"rpc.pprof-laddr",
+		"rpc.unsafe",
 		"state-sync.snapshot-interval",
 		"state-sync.snapshot-keep-recent",
 	}
