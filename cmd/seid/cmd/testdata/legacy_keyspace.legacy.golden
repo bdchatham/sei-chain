@@ -91,12 +91,5 @@ rpc.timeout-write
 rpc.tls-cert-file
 rpc.tls-key-file
 rpc.unsafe
-statesync.enable
-statesync.rpc-servers
-statesync.trust-hash
-statesync.trust-height
-statesync.trust-period
-statesync.use-local-snapshot
-statesync.use-p2p
 tx-index.indexer
 tx-index.psql-conn

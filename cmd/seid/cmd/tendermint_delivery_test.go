@@ -1,8 +1,16 @@
 package cmd
 
 import (
+	"os"
+	"path/filepath"
+	"regexp"
 	"testing"
 
+	"go.opentelemetry.io/otel/sdk/trace"
+
+	"github.com/sei-protocol/sei-chain/cmd/seid/cmd/configmanager"
+	"github.com/sei-protocol/sei-chain/sei-cosmos/server"
+	tmcfg "github.com/sei-protocol/sei-chain/sei-tendermint/config"
 	"github.com/sei-protocol/sei-chain/testutil/configtest"
 )
 
@@ -32,12 +40,65 @@ func TestASeiTomlValueReachesTheTendermintConfig(t *testing.T) {
 	}
 }
 
-// TestAnUnwrittenTendermintKeyKeepsWhatTheNodeHad is the other half of the same property.
+// TestAnUnwrittenTendermintKeyKeepsWhatConfigTomlSaid is the property that separates delivering a value
+// from overwriting one.
 //
-// Every key of a declared section resolves, so the delivery writes all of them whether or not the
-// operator named any. A key they did not write has to arrive at the value it already had, or declaring
-// the section would move settings nobody chose.
-func TestAnUnwrittenTendermintKeyKeepsWhatTheNodeHad(t *testing.T) {
+// A section read by a lookup can be delivered whole: its reader has nowhere else to get a value from. A
+// section read by a decode already holds what its own file said, put there by the boot's handler before
+// any of this ran. So a key the operator's sei.toml does not mention has to arrive at whatever
+// config.toml gave it, and delivering the baseline instead replaces their file with a default nobody
+// chose, on every boot.
+//
+// The fixture turns the key on in config.toml, where the baseline is off, so the two disagree. Without
+// that they agree and the overwrite is invisible, which is how it passed here once already.
+func TestAnUnwrittenTendermintKeyKeepsWhatConfigTomlSaid(t *testing.T) {
+	configtest.Isolate(t)
+	home := configtest.NewHome(t)
+	dir := filepath.Join(home.Root, "config")
+	if err := os.MkdirAll(dir, 0o750); err != nil {
+		t.Fatalf("mkdir: %v", err)
+	}
+	if err := tmcfg.WriteConfigFile(home.Root, tmcfg.DefaultConfig()); err != nil {
+		t.Fatalf("render config.toml: %v", err)
+	}
+
+	path := filepath.Join(dir, "config.toml")
+	raw, err := os.ReadFile(path) // #nosec G304 -- a path this test just wrote
+	if err != nil {
+		t.Fatalf("read the fixture: %v", err)
+	}
+	edited := regexp.MustCompile(`(?m)^prometheus = false$`).ReplaceAll(raw, []byte("prometheus = true"))
+	if string(edited) == string(raw) {
+		t.Fatal("the fixture left the key at its baseline, so an overwrite would be invisible")
+	}
+	if err := os.WriteFile(path, edited, 0o600); err != nil {
+		t.Fatalf("write the fixture: %v", err)
+	}
+	// sei.toml says nothing about this section at all.
+	if err := os.WriteFile(filepath.Join(dir, "sei.toml"),
+		[]byte("schema_version = 1\nnode_mode = \"validator\"\n"), 0o600); err != nil {
+		t.Fatalf("write sei.toml: %v", err)
+	}
+
+	cmd := server.StartCmd(nil, home.Root, []trace.TracerProviderOption{})
+	if err := cmd.Flags().Set("home", home.Root); err != nil {
+		t.Fatalf("set --home: %v", err)
+	}
+	ctx, err := runManager(t, configmanager.SeiConfigManager{}, cmd)
+	if err != nil {
+		t.Fatalf("Apply refused the boot: %v", err)
+	}
+
+	if !ctx.Config.Instrumentation.Prometheus {
+		t.Error("config.toml turned the metrics listener on, sei.toml said nothing about it, and the " +
+			"node runs with it off. The baseline was delivered over the operator's own file, which " +
+			"happens on every boot for every key their sei.toml does not mention")
+	}
+}
+
+// TestAnUnwrittenTendermintKeyKeepsTheDefaultWhenNoFileSaysOtherwise is the same property where the two
+// agree, which is most of a fleet.
+func TestAnUnwrittenTendermintKeyKeepsTheDefaultWhenNoFileSaysOtherwise(t *testing.T) {
 	configtest.Isolate(t)
 	ctx := bootWithSeiToml(t, "schema_version = 1\nnode_mode = \"validator\"\n\n"+
 		"[instrumentation]\nprometheus = true\n")
@@ -98,5 +159,66 @@ func TestTheDeliveryLeavesTheRootDirectoryAlone(t *testing.T) {
 	if ctx.Config.PrivValidator.RootDir == "" {
 		t.Error("the signing key's root directory is empty after the delivery. priv-validator is " +
 			"declared, so its home key would be delivered at its baseline if it were not excluded")
+	}
+}
+
+// TestAWrittenListReplacesTheOneTheNodeHad is the first declared key carrying a list.
+//
+// mapstructure decodes a slice by writing the input's elements into the existing one and cutting it to
+// the input's length, so a shorter list truncates rather than leaving a tail behind. That is what an
+// operator writing a list means: these servers, not these as well as the ones already there.
+//
+// The fixture gives config.toml three servers and sei.toml two, so a delivery that appended would leave
+// five and one that merged would leave three. Only replacement leaves two.
+func TestAWrittenListReplacesTheOneTheNodeHad(t *testing.T) {
+	configtest.Isolate(t)
+	home := configtest.NewHome(t)
+	dir := filepath.Join(home.Root, "config")
+	if err := os.MkdirAll(dir, 0o750); err != nil {
+		t.Fatalf("mkdir: %v", err)
+	}
+	if err := tmcfg.WriteConfigFile(home.Root, tmcfg.DefaultConfig()); err != nil {
+		t.Fatalf("render config.toml: %v", err)
+	}
+
+	path := filepath.Join(dir, "config.toml")
+	raw, err := os.ReadFile(path) // #nosec G304 -- a path this test just wrote
+	if err != nil {
+		t.Fatalf("read the fixture: %v", err)
+	}
+	edited := regexp.MustCompile(`(?m)^rpc-servers = .*$`).
+		ReplaceAll(raw, []byte(`rpc-servers = ["old-1:26657", "old-2:26657", "old-3:26657"]`))
+	if string(edited) == string(raw) {
+		t.Fatal("the fixture set no servers in config.toml, so replacement cannot be told from anything")
+	}
+	if err := os.WriteFile(path, edited, 0o600); err != nil {
+		t.Fatalf("write the fixture: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "sei.toml"), []byte("schema_version = 1\n"+
+		"node_mode = \"validator\"\n\n[statesync]\nrpc-servers = [\"new-1:26657\", \"new-2:26657\"]\n"),
+		0o600); err != nil {
+		t.Fatalf("write sei.toml: %v", err)
+	}
+
+	cmd := server.StartCmd(nil, home.Root, []trace.TracerProviderOption{})
+	if err := cmd.Flags().Set("home", home.Root); err != nil {
+		t.Fatalf("set --home: %v", err)
+	}
+	ctx, err := runManager(t, configmanager.SeiConfigManager{}, cmd)
+	if err != nil {
+		t.Fatalf("Apply refused the boot: %v", err)
+	}
+
+	got := ctx.Config.StateSync.RPCServers
+	want := []string{"new-1:26657", "new-2:26657"}
+	if len(got) != len(want) {
+		t.Fatalf("the node trusts %v, want %v. A longer list means the delivery added to the servers "+
+			"config.toml named rather than replacing them, and a node verifying snapshots against a "+
+			"server the operator removed is the failure that hides behind that", got, want)
+	}
+	for i := range want {
+		if got[i] != want[i] {
+			t.Errorf("server %d is %q, want %q", i, got[i], want[i])
+		}
 	}
 }

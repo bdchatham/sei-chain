@@ -213,11 +213,19 @@ func DecodedNotLookedUp(section string) bool {
 	return ok
 }
 
-// KeysDecodedNotLookedUp returns the resolved values of every such section, keyed by dotted key.
+// KeysDecodedNotLookedUp returns the values of every such section that a layer above the baseline
+// supplied, keyed by dotted key.
 //
-// Built from the resolution rather than from the registry alone, so the values carry whatever layer
-// answered for them and not the baseline. A section with no keys contributes nothing rather than an
-// empty entry, because an empty decode is indistinguishable from one that did not run.
+// The baselines are deliberately left out, and this is the difference between delivering a value and
+// overwriting one. A section read by a lookup can be delivered whole, because the reader has nowhere
+// else to get a value from. A section read by a decode already holds what its own file said: the boot's
+// handler put it there before any of this ran. Delivering a baseline over that replaces the operator's
+// config.toml with a default nobody chose, on every boot, for every key their sei.toml does not mention.
+//
+// So a key that took its baseline is skipped, and a key any other layer answered is delivered. That
+// includes an operator writing the baseline value explicitly, since Resolved records which layer
+// answered rather than whether the answer differs from the default: writing false where config.toml
+// says true has to reach the node.
 func KeysDecodedNotLookedUp(resolved Resolved) map[string]any {
 	mu.RLock()
 	owning := map[string]bool{}
@@ -226,12 +234,20 @@ func KeysDecodedNotLookedUp(resolved Resolved) map[string]any {
 	}
 	mu.RUnlock()
 
+	chosen := map[string]bool{}
+	for _, key := range resolved.Overrides() {
+		chosen[key] = true
+	}
+
 	out := map[string]any{}
 	for _, section := range Sections() {
 		if !owning[section.Name] {
 			continue
 		}
 		for _, key := range section.Keys {
+			if !chosen[key] {
+				continue
+			}
 			if resolution, found := resolved.Keys[key]; found {
 				out[key] = resolution.Value
 			}

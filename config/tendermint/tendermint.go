@@ -20,6 +20,7 @@ const (
 	InstrumentationSectionName = "instrumentation"
 	SelfRemediationSectionName = "self-remediation"
 	PrivValidatorSectionName   = "priv-validator"
+	StateSyncSectionName       = "statesync"
 )
 
 // rootDirectoryIsNotConfiguration is why the home key of a Tendermint sub-struct is never declared.
@@ -45,6 +46,11 @@ func init() {
 	registry.RegisterSection(SelfRemediationSectionName, &tmcfg.SelfRemediationConfig{},
 		selfRemediationBaseline)
 
+	// The one declared section carrying a list. mapstructure decodes a slice by replacing it to the
+	// input's length, so a written rpc-servers replaces the node's servers rather than adding to them,
+	// which is what an operator writing a list means.
+	registry.RegisterSection(StateSyncSectionName, &tmcfg.StateSyncConfig{}, stateSyncBaseline)
+
 	registry.RegisterSectionExcluding(PrivValidatorSectionName, &tmcfg.PrivValidatorConfig{},
 		privValidatorBaseline, map[string]string{
 			PrivValidatorSectionName + ".home": rootDirectoryIsNotConfiguration,
@@ -54,6 +60,7 @@ func init() {
 		InstrumentationSectionName: "config.InstrumentationConfig",
 		SelfRemediationSectionName: "config.SelfRemediationConfig",
 		PrivValidatorSectionName:   "config.PrivValidatorConfig",
+		StateSyncSectionName:       "config.StateSyncConfig",
 	} {
 		registry.DeclareDecodedNotLookedUp(section,
 			"decoded into tendermint "+into+" by the boot's own handler, which reads config.toml once "+
@@ -90,4 +97,16 @@ func selfRemediationBaseline(registry.Mode) any {
 // makes them no differently from a full node; what differs is whether the key signs anything.
 func privValidatorBaseline(registry.Mode) any {
 	return *tmcfg.DefaultPrivValidatorConfig()
+}
+
+// stateSyncBaseline is what this section resolves to for a node that has written nothing.
+//
+// The upstream defaults, and the same for every mode. Whether a node catches up from a snapshot and
+// which servers it trusts to verify one are decisions about how an operator brings a node into a
+// network, not about what kind of node it becomes afterwards.
+//
+// Distinct from the state-sync section of app.toml, which is the same idea from the other side: that one
+// says whether this node serves snapshots, this one says whether it consumes them.
+func stateSyncBaseline(registry.Mode) any {
+	return *tmcfg.DefaultStateSyncConfig()
 }
