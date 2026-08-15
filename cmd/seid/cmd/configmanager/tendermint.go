@@ -7,6 +7,8 @@ import (
 
 	"github.com/spf13/viper"
 
+	"github.com/sei-protocol/seilog"
+
 	"github.com/sei-protocol/sei-chain/config/registry"
 	"github.com/sei-protocol/sei-chain/sei-cosmos/server"
 	tmcfg "github.com/sei-protocol/sei-chain/sei-tendermint/config"
@@ -59,6 +61,44 @@ func deliverDecodedSections(ctx *server.Context, resolved registry.Resolved, log
 		return
 	}
 	log.Info("resolved tendermint settings applied", "count", len(values))
+	applyLogLevel(values, log)
+}
+
+// logLevelKey is the one delivered setting the struct is not the end of.
+const logLevelKey = "log-level"
+
+// applyLogLevel hands a delivered log level to the logger, which the struct alone does not reach.
+//
+// The boot's handler reads the level off the struct and sets it before any of this runs, so a value
+// decoded afterwards moves the field and changes no logging. A setting that appears to take and does not
+// is the thing this key space exists to remove, so the level is applied here rather than the key being
+// left undeclared.
+//
+// Which value arrives is already decided. The resolution ranks a flag over the environment over the file,
+// which is the order the handler reaches for by hand, so this applies whatever won rather than choosing
+// again.
+//
+// A level that does not parse is reported and skipped. The handler refuses a boot over one; this manager
+// may not, and the node keeps the level it already had.
+func applyLogLevel(values map[string]any, log *slog.Logger) {
+	value, delivered := values[logLevelKey]
+	if !delivered {
+		return
+	}
+	text, isText := value.(string)
+	if !isText {
+		log.Warn("the resolved log level is not text; the node keeps the level it already had",
+			"value", value)
+		return
+	}
+	var level slog.Level
+	if err := level.UnmarshalText([]byte(text)); err != nil {
+		log.Warn("the resolved log level cannot be read; the node keeps the level it already had",
+			"level", text, "err", err)
+		return
+	}
+	seilog.SetDefaultLevel(level, true)
+	log.Info("resolved log level applied", "level", text)
 }
 
 // sortedKeys returns a map's keys in a fixed order, so a log line does not vary between runs.

@@ -59,6 +59,13 @@ var envAllowlist = map[string]bool{
 // seilog does not otherwise expose.
 const logProbeName = "configtest"
 
+// LogDefaultLevel reports seilog's current default level.
+//
+// Exported so a test outside this package can read where a delivered log level landed. The struct field
+// alone does not say: the boot hands the level to the logger separately, and a check that read only the
+// field would pass while the node logged at the level it started with.
+func LogDefaultLevel() slog.Level { return logDefaultLevel() }
+
 // logDefaultLevel reports seilog's current default level.
 //
 // seilog has SetDefaultLevel and no matching getter, so the value is read through a probe

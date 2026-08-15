@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"log/slog"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -220,5 +221,32 @@ func TestAWrittenListReplacesTheOneTheNodeHad(t *testing.T) {
 		if got[i] != want[i] {
 			t.Errorf("server %d is %q, want %q", i, got[i], want[i])
 		}
+	}
+}
+
+// TestADeliveredLogLevelReachesTheLogger is the one delivered setting the struct is not the end of.
+//
+// The boot's handler reads the level off the struct and hands it to the logger before resolved values
+// are delivered, so a value decoded afterwards moves the field and changes no logging. A setting that
+// appears to take and does not is what this key space exists to remove, so the delivery applies it.
+//
+// Read back through a probe logger, because seilog has a setter and no getter, and because the field
+// alone would pass this test while the node still logged at the level it started with.
+func TestADeliveredLogLevelReachesTheLogger(t *testing.T) {
+	configtest.Isolate(t)
+	before := configtest.LogDefaultLevel()
+	if before == slog.LevelWarn {
+		t.Fatalf("the logger already sits at %v, so this fixture cannot show it moving", before)
+	}
+
+	ctx := bootWithSeiToml(t, "schema_version = 1\nnode_mode = \"validator\"\nlog-level = \"warn\"\n")
+
+	if got := ctx.Config.LogLevel; got != "warn" {
+		t.Errorf("sei.toml set the log level to warn and the configuration says %q", got)
+	}
+	if got := configtest.LogDefaultLevel(); got != slog.LevelWarn {
+		t.Errorf("the configuration carries the level and the logger sits at %v. The struct is not "+
+			"where a log level takes effect, so an operator who set it would see no change in the logs",
+			got)
 	}
 }
