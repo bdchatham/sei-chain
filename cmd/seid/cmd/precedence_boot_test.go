@@ -5,6 +5,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"go.opentelemetry.io/otel/sdk/trace"
 
@@ -262,15 +263,36 @@ func valuesFor(t *testing.T, key string) (inFile, inEnv, onCommandLine, want str
 		t.Fatalf("%q is not a flag on the start command, so this subtest should not have been built", key)
 	}
 
+	// Values of the key's declared type, not merely of the flag's. A duration is carried by a string
+	// flag, which accepts 111 happily and then fails the decode that reads it as a duration, so a probe
+	// chosen from the flag alone tests a value no operator could cause to arrive.
 	inFile, inEnv, onCommandLine = "111", "222", "333"
-	if f.Value.Type() == "bool" {
+	switch {
+	case f.Value.Type() == "bool":
 		inFile, inEnv, onCommandLine = "false", "false", "true"
+	case declaredAsDuration(t, key):
+		inFile, inEnv, onCommandLine = "1s", "2s", "3s"
 	}
 	if err := f.Value.Set(onCommandLine); err != nil {
 		t.Fatalf("the flag for %q refuses %q, so this subtest needs a value of its type: %v",
 			key, onCommandLine, err)
 	}
 	return inFile, inEnv, onCommandLine, f.Value.String()
+}
+
+// declaredAsDuration reports whether the registry resolves this key as a duration.
+func declaredAsDuration(t *testing.T, key string) bool {
+	t.Helper()
+	resolved, err := registry.Resolve(registry.ModeValidator)
+	if err != nil {
+		t.Fatalf("Resolve: %v", err)
+	}
+	res, ok := resolved.Keys[key]
+	if !ok {
+		return false
+	}
+	_, isDuration := res.Value.(time.Duration)
+	return isDuration
 }
 
 // TestANodeStartsDespiteAVariableTheEnvironmentCannotDeliver is the divergence this manager takes on.

@@ -36,6 +36,7 @@ import (
 var Names = []string{
 	"admin_server",
 	"api",
+	"consensus",
 	"base",
 	"eth_blocktest",
 	"eth_replay",
@@ -47,8 +48,12 @@ var Names = []string{
 	"grpc-web",
 	"instrumentation",
 	"light_invariance",
+	"mempool",
+	"node",
+	"p2p",
 	"priv-validator",
 	"receipt-store",
+	"rpc",
 	"rosetta",
 	"self-remediation",
 	"state-commit",
@@ -56,6 +61,7 @@ var Names = []string{
 	"state-sync",
 	"statesync",
 	"telemetry",
+	"tx-index",
 	"wasm",
 }
 

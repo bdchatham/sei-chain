@@ -5,10 +5,8 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
-	"regexp"
 	"sort"
 	"testing"
-	"time"
 
 	"go.opentelemetry.io/otel/sdk/trace"
 
@@ -37,9 +35,16 @@ import (
 // number reaches the second as a string, and a duration written as a bare number is rejected. Every
 // property below holds; none of them says the whole source may be decoded again.
 //
-// What that leaves is decoding the resolved keys alone, out of a source built for the purpose, into a
-// copy that is published only once it decodes and validates. These tests are what that design has to keep
-// holding.
+// What that leaves is decoding the resolved keys alone, out of a source built for them, which is what
+// deliverDecodedSections does and what tendermint_delivery_test.go covers.
+//
+// Two tests that lived here are gone, both for the same reason: declaring the config.toml sections put
+// their resolved baselines into that source at override rank, and a whole-source decode now sees them.
+// One measured an installed key reaching its own setting and nothing else, which stopped being true
+// because every declared baseline is now in the source. The other exhibited a duration written as a bare
+// number decoding on the first pass and failing on the second, which the declared baseline now masks by
+// outranking the stringified flag that caused it. Neither survives the declarations, and neither is a
+// property of the delivery that replaced them.
 
 // bootWithConfigToml boots the way bootWithSeiToml does, with a config.toml already on disk.
 //
@@ -141,11 +146,17 @@ func movedFields(before, after map[string]string) []string {
 // Nothing in this tree reads that map, which is what makes the movement inert rather than tolerated.
 const remainField = "BaseConfig.Other"
 
-// TestASecondDecodeOfTheTendermintConfigMovesNothing is the property the ordering fix rests on.
+// TestASecondDecodeOfTheWholeSourceMovesFieldsNobodyWrote is why the delivery reads a narrow source.
 //
-// If a second decode moved a field on its own, installing a key and decoding again could not be used at
-// all: every node would take the movement whether or not it had written the key.
-func TestASecondDecodeOfTheTendermintConfigMovesNothing(t *testing.T) {
+// The boot's handler writes P2P.RecvRate, P2P.SendRate and the commit timeout override into the struct
+// by hand, after its own decode. Once config.toml sections are declared, the installed baselines for
+// those keys sit in the source, so a decode of the whole source reverts every one of them, on every
+// node, with nothing written by anybody.
+//
+// Recorded as the movement it is rather than asserted away, and what is required is that those fields
+// are among the ones that move. If they stop moving, this has stopped measuring the hazard rather than
+// the hazard having gone.
+func TestASecondDecodeOfTheWholeSourceMovesFieldsNobodyWrote(t *testing.T) {
 	for _, c := range []struct {
 		name string
 		boot func(*testing.T) *server.Context
@@ -173,12 +184,24 @@ func TestASecondDecodeOfTheTendermintConfigMovesNothing(t *testing.T) {
 				t.Fatalf("a second decode failed: %v", err)
 			}
 
+			moved := map[string]bool{}
 			for _, path := range movedFields(before, tendermintLeaves(ctx.Config)) {
-				if path == remainField {
-					continue
+				moved[path] = true
+			}
+			if !moved[remainField] {
+				t.Errorf("the ,remain map did not move. A second decode puts the whole declared key " +
+					"space there, so this is no longer measuring a second decode at all")
+			}
+			// The handler sets these only on the branch where it writes a fresh file, so only that
+			// branch can show them being reverted.
+			if c.name != "without one" {
+				return
+			}
+			for _, path := range []string{"P2P.RecvRate", "P2P.SendRate"} {
+				if !moved[path] {
+					t.Errorf("%s did not move on a whole-source decode, which is the hazard the narrow "+
+						"delivery exists for. This test has stopped measuring it", path)
 				}
-				t.Errorf("a second decode moved %s with nothing installed. Every node would take that "+
-					"movement, so a key cannot be delivered this way", path)
 			}
 		})
 	}
@@ -204,99 +227,5 @@ func TestTheRootDirectorySurvivesASecondDecode(t *testing.T) {
 	if ctx.Config.RootDir != root {
 		t.Errorf("the root directory moved from %q to %q on a second decode. Every path a node resolves "+
 			"against it would follow", root, ctx.Config.RootDir)
-	}
-}
-
-// TestAnInstalledTendermintKeyReachesItsSettingOnASecondDecode is the delivery this is all for.
-//
-// One key, installed into the source the way a declared key would be, and one field moving. That is what
-// says config.toml keys can be declared without changing how the boot is ordered.
-func TestAnInstalledTendermintKeyReachesItsSettingOnASecondDecode(t *testing.T) {
-	configtest.Isolate(t)
-	ctx := bootWithConfigToml(t, "schema_version = 1\nnode_mode = \"validator\"\n")
-
-	const key = "p2p.max-packet-msg-payload-size"
-	const want = 4242
-	if ctx.Config.P2P.MaxPacketMsgPayloadSize == want {
-		t.Fatalf("the probe is already %d, so this test would pass without installing anything", want)
-	}
-	before := tendermintLeaves(ctx.Config)
-
-	ctx.Viper.Set(key, want)
-	if err := ctx.Viper.Unmarshal(ctx.Config); err != nil {
-		t.Fatalf("a second decode failed: %v", err)
-	}
-
-	if got := ctx.Config.P2P.MaxPacketMsgPayloadSize; got != want {
-		t.Errorf("%s was installed as %d and the setting reads %d. The key did not reach the struct, so "+
-			"a second decode is not a delivery mechanism", key, want, got)
-	}
-	for _, path := range movedFields(before, tendermintLeaves(ctx.Config)) {
-		if path == remainField || path == "P2P.MaxPacketMsgPayloadSize" {
-			continue
-		}
-		t.Errorf("installing one key also moved %s. A declared key has to reach its own setting and "+
-			"nothing else", path)
-	}
-}
-
-// TestASecondDecodeOfTheWholeSourceCanFailWhereTheFirstSucceeded is the limit on all of the above.
-//
-// The three properties above are measured against a configuration this repository wrote. This one is
-// measured against a configuration an operator could have written, and it fails: a duration written as a
-// bare number decodes on the first pass and is refused on the second.
-//
-// The cause is that the second decode reads a different source. The handler's bindFlags pass copies each
-// configuration value into its flag as text and marks the flag changed, and viper ranks a changed flag
-// above the file, so int64(7000000000) arrives at the second decode as "7000000000". The duration hook
-// takes a number or a unit-bearing string and refuses a unit-less one.
-//
-// mapstructure gathers errors and keeps going, so a failure here leaves the struct partly written. That is
-// what rules out decoding the whole source in place: there is no result to publish and no way back to the
-// one the node had.
-func TestASecondDecodeOfTheWholeSourceCanFailWhereTheFirstSucceeded(t *testing.T) {
-	configtest.Isolate(t)
-	home := configtest.NewHome(t)
-	dir := filepath.Join(home.Root, "config")
-	if err := os.MkdirAll(dir, 0o750); err != nil {
-		t.Fatalf("mkdir: %v", err)
-	}
-	tmcfg.WriteConfigFile(home.Root, tmcfg.DefaultConfig())
-
-	path := filepath.Join(dir, "config.toml")
-	raw, err := os.ReadFile(path) // #nosec G304 -- a path this test just wrote
-	if err != nil {
-		t.Fatalf("read the fixture: %v", err)
-	}
-	edited := regexp.MustCompile(`(?m)^create-empty-blocks-interval = .*$`).
-		ReplaceAll(raw, []byte("create-empty-blocks-interval = 7000000000"))
-	if string(edited) == string(raw) {
-		t.Fatal("the fixture changed no key, so this measures nothing")
-	}
-	if err := os.WriteFile(path, edited, 0o600); err != nil {
-		t.Fatalf("write the fixture: %v", err)
-	}
-	if err := os.WriteFile(filepath.Join(dir, "sei.toml"),
-		[]byte("schema_version = 1\nnode_mode = \"validator\"\n"), 0o600); err != nil {
-		t.Fatalf("write sei.toml: %v", err)
-	}
-
-	cmd := server.StartCmd(nil, home.Root, []trace.TracerProviderOption{})
-	if err := cmd.Flags().Set("home", home.Root); err != nil {
-		t.Fatalf("set --home: %v", err)
-	}
-	ctx, err := runManager(t, configmanager.SeiConfigManager{}, cmd)
-	if err != nil {
-		t.Fatalf("the first decode refused a configuration an operator can write: %v", err)
-	}
-	if got := ctx.Config.Consensus.CreateEmptyBlocksInterval; got != 7*time.Second {
-		t.Fatalf("the first decode read the interval as %v, want 7s. The fixture is not exercising the "+
-			"weak decode this is about", got)
-	}
-
-	if err := ctx.Viper.Unmarshal(ctx.Config); err == nil {
-		t.Error("a second decode of the whole source accepted a value the first decode read as a " +
-			"duration. If that is now true, the delivery may decode the whole source in place and this " +
-			"test should be replaced by one that says so")
 	}
 }
