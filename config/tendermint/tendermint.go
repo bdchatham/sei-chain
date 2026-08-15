@@ -15,8 +15,22 @@ import (
 	tmcfg "github.com/sei-protocol/sei-chain/sei-tendermint/config"
 )
 
-// InstrumentationSectionName is the metrics listener config.toml carries.
-const InstrumentationSectionName = "instrumentation"
+// The sections config.toml carries.
+const (
+	InstrumentationSectionName = "instrumentation"
+	SelfRemediationSectionName = "self-remediation"
+	PrivValidatorSectionName   = "priv-validator"
+)
+
+// rootDirectoryIsNotConfiguration is why the home key of a Tendermint sub-struct is never declared.
+//
+// Five of them carry a RootDir field tagged home, and Config.SetRoot fills every one after the file is
+// decoded. It is derived state, not something an operator writes: the template never renders it, its
+// default is the empty string, and delivering that would leave a node unable to find its own data
+// directory.
+const rootDirectoryIsNotConfiguration = "the node's root directory, which Config.SetRoot fills after " +
+	"the file is decoded. The template never writes it and its default is empty, so declaring it would " +
+	"put an empty root in an operator's file and delivering that would lose every path derived from it"
 
 // Registration puts the config.toml sections in the registry.
 //
@@ -28,9 +42,23 @@ func init() {
 	registry.RegisterSection(InstrumentationSectionName, &tmcfg.InstrumentationConfig{},
 		instrumentationBaseline)
 
-	registry.DeclareDecodedNotLookedUp(InstrumentationSectionName,
-		"decoded into tendermint config.InstrumentationConfig by the boot's own handler, which reads "+
-			"config.toml once into a struct; nothing looks these keys up afterwards")
+	registry.RegisterSection(SelfRemediationSectionName, &tmcfg.SelfRemediationConfig{},
+		selfRemediationBaseline)
+
+	registry.RegisterSectionExcluding(PrivValidatorSectionName, &tmcfg.PrivValidatorConfig{},
+		privValidatorBaseline, map[string]string{
+			PrivValidatorSectionName + ".home": rootDirectoryIsNotConfiguration,
+		})
+
+	for section, into := range map[string]string{
+		InstrumentationSectionName: "config.InstrumentationConfig",
+		SelfRemediationSectionName: "config.SelfRemediationConfig",
+		PrivValidatorSectionName:   "config.PrivValidatorConfig",
+	} {
+		registry.DeclareDecodedNotLookedUp(section,
+			"decoded into tendermint "+into+" by the boot's own handler, which reads config.toml once "+
+				"into a struct; nothing looks these keys up afterwards")
+	}
 }
 
 // instrumentationBaseline is what this section resolves to for a node that has written nothing.
@@ -44,4 +72,22 @@ func init() {
 // that resolved to a pointer would compare unequal to every value written under it.
 func instrumentationBaseline(registry.Mode) any {
 	return *tmcfg.DefaultInstrumentationConfig()
+}
+
+// selfRemediationBaseline is what this section resolves to for a node that has written nothing.
+//
+// The upstream defaults, and the same for every mode. Every one of these is a window a node waits before
+// restarting itself, which is an operator's judgement about their own network rather than something a
+// node's role implies.
+func selfRemediationBaseline(registry.Mode) any {
+	return *tmcfg.DefaultSelfRemediationConfig()
+}
+
+// privValidatorBaseline is what this section resolves to for a node that has written nothing.
+//
+// The upstream defaults, and the same for every mode. Where a node keeps its signing key and whether it
+// reaches a remote signer are decisions about how an operator holds their key material, and a validator
+// makes them no differently from a full node; what differs is whether the key signs anything.
+func privValidatorBaseline(registry.Mode) any {
+	return *tmcfg.DefaultPrivValidatorConfig()
 }

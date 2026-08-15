@@ -56,6 +56,14 @@ handler merges `app.toml` into it and copies configuration values into flags as 
 duration written as a bare number decodes on the handler's pass and is refused on a second
 one. The declaration is also why a census of lookups never sees those keys.
 
+A few upstream structs carry a tagged field that is not operator configuration, and
+`RegisterSectionExcluding` is how a section drops one. The root directory is the case: it is
+tagged `home` on five Tendermint sub-structs and filled by `SetRoot` after the file is decoded,
+so declaring it would put an empty root in an operator's file and delivering that would lose
+every path derived from it. Each exclusion carries its reason, and one naming a key the struct
+does not produce is refused, because a stale exclusion reads as though the field it named had
+been dealt with.
+
 ## Code style
 
 All Go files must be both `gofmt`- and `goimports`-compliant (`.golangci.yml`
