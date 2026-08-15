@@ -85,7 +85,7 @@ func TestSetWritesTheDeclaredTypeNotTheTypedText(t *testing.T) {
 	} {
 		t.Run(tc.key, func(t *testing.T) {
 			registerTyped(t)
-			path := seed(t, "schema_version = 1\nnode_mode = \"validator\"\n")
+			path := seed(t, "schema_version = 2\nnode_mode = \"validator\"\n")
 
 			change, err := configcli.Set(path, tc.key, tc.raw)
 			if err != nil {
@@ -108,7 +108,7 @@ func TestSetWritesTheDeclaredTypeNotTheTypedText(t *testing.T) {
 // TestSetWritesAListAsAList covers the one type that is not a single token.
 func TestSetWritesAListAsAList(t *testing.T) {
 	registerTyped(t)
-	path := seed(t, "schema_version = 1\nnode_mode = \"validator\"\n")
+	path := seed(t, "schema_version = 2\nnode_mode = \"validator\"\n")
 
 	if _, err := configcli.Set(path, "probe.peers", "x, y ,z"); err != nil {
 		t.Fatalf("Set: %v", err)
@@ -140,7 +140,7 @@ func TestSetRefusesTextThatIsNotTheDeclaredType(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			registerTyped(t)
-			path := seed(t, "schema_version = 1\nnode_mode = \"validator\"\n")
+			path := seed(t, "schema_version = 2\nnode_mode = \"validator\"\n")
 
 			if _, err := configcli.Set(path, tc.key, tc.raw); err == nil {
 				t.Errorf("set accepted %q for %s. The file would hold a value the node refuses, and "+
@@ -160,7 +160,7 @@ func TestSetRefusesTextThatIsNotTheDeclaredType(t *testing.T) {
 // the operator can see what they meant.
 func TestSetRefusesAKeyNoSectionDeclares(t *testing.T) {
 	registerTyped(t)
-	path := seed(t, "schema_version = 1\nnode_mode = \"validator\"\n")
+	path := seed(t, "schema_version = 2\nnode_mode = \"validator\"\n")
 
 	_, err := configcli.Set(path, "probe.worker", "16")
 	if err == nil {
@@ -178,7 +178,7 @@ func TestSetRefusesAKeyNoSectionDeclares(t *testing.T) {
 // operator wrote, and a freshly generated home does not carry the table for the same reason.
 func TestSetRefusesToWriteTheExperimentalTable(t *testing.T) {
 	registerTyped(t)
-	path := seed(t, "schema_version = 1\nnode_mode = \"validator\"\n")
+	path := seed(t, "schema_version = 2\nnode_mode = \"validator\"\n")
 
 	// Asserted on what the message says, not merely that one appeared. An experimental key is real
 	// and hand-written, so refusing it as a key nothing declares is wrong advice: the operator would
@@ -214,7 +214,7 @@ func TestSetRefusesToWriteTheExperimentalTable(t *testing.T) {
 // has no record of what they overwrote.
 func TestSetReportsWhatItReplaced(t *testing.T) {
 	registerTyped(t)
-	path := seed(t, "schema_version = 1\nnode_mode = \"validator\"\n\n[probe]\nworkers = 4\n")
+	path := seed(t, "schema_version = 2\nnode_mode = \"validator\"\n\n[probe]\nworkers = 4\n")
 
 	change, err := configcli.Set(path, "probe.workers", "16")
 	if err != nil {
@@ -236,7 +236,7 @@ func TestSetReportsWhatItReplaced(t *testing.T) {
 // tell a successful fallback from a mistyped key.
 func TestUnsetRemovesTheKeyAndReportsWhetherItWasThere(t *testing.T) {
 	registerTyped(t)
-	path := seed(t, "schema_version = 1\nnode_mode = \"validator\"\n\n[probe]\nworkers = 4\nenabled = true\n")
+	path := seed(t, "schema_version = 2\nnode_mode = \"validator\"\n\n[probe]\nworkers = 4\nenabled = true\n")
 
 	change, err := configcli.Unset(path, "probe.workers")
 	if err != nil {
@@ -269,7 +269,7 @@ func TestUnsetRemovesTheKeyAndReportsWhetherItWasThere(t *testing.T) {
 // before and after are indistinguishable and the test would pass for an unset that did nothing.
 func TestSetAndUnsetRoundTripThroughTheFile(t *testing.T) {
 	registerTyped(t)
-	path := seed(t, "schema_version = 1\nnode_mode = \"validator\"\n")
+	path := seed(t, "schema_version = 2\nnode_mode = \"validator\"\n")
 
 	if _, err := configcli.Set(path, "probe.workers", "16"); err != nil {
 		t.Fatalf("Set: %v", err)
@@ -313,7 +313,7 @@ func TestSetAndUnsetRoundTripThroughTheFile(t *testing.T) {
 func TestSetPreservesTheCommentOnTheKeyItChanges(t *testing.T) {
 	registerTyped(t)
 	const note = "# Raised during the March load test."
-	path := seed(t, "schema_version = 1\nnode_mode = \"validator\"\n\n[probe]\n"+note+"\nworkers = 4\n")
+	path := seed(t, "schema_version = 2\nnode_mode = \"validator\"\n\n[probe]\n"+note+"\nworkers = 4\n")
 
 	if _, err := configcli.Set(path, "probe.workers", "16"); err != nil {
 		t.Fatalf("Set: %v", err)
@@ -367,7 +367,7 @@ func TestAKeysTypeDoesNotVaryByMode(t *testing.T) {
 // moment a release changes that baseline.
 func TestDiffSeparatesChosenValuesFromTrackedOnes(t *testing.T) {
 	registerTyped(t)
-	file := parseFile(t, "schema_version = 1\nnode_mode = \"validator\"\n\n[probe]\nworkers = 16\nratio = 0.5\nstray = 1\n")
+	file := parseFile(t, "schema_version = 2\nnode_mode = \"validator\"\n\n[probe]\nworkers = 16\nratio = 0.5\nstray = 1\n")
 
 	got, err := configcli.Diff(file, registry.ModeValidator)
 	if err != nil {
@@ -405,7 +405,7 @@ func TestDiffSeparatesChosenValuesFromTrackedOnes(t *testing.T) {
 // be useless on precisely the file generate produces.
 func TestDiffDoesNotReportEqualValuesAsDifferentBecauseOfTheirTypes(t *testing.T) {
 	registerTyped(t)
-	generated, err := configcli.Generate(registry.ModeValidator)
+	generated, err := configcli.Generate(registry.ModeValidator, "probe-node")
 	if err != nil {
 		t.Fatalf("Generate: %v", err)
 	}
@@ -435,7 +435,7 @@ func TestDiffDoesNotReportEqualValuesAsDifferentBecauseOfTheirTypes(t *testing.T
 // reached the baselines and an archive node would be measured against a validator's defaults.
 func TestDiffFollowsTheModeTheFileRecords(t *testing.T) {
 	registerTyped(t)
-	const body = "schema_version = 1\nnode_mode = %q\n\n[probe]\nenabled = true\n"
+	const body = "schema_version = 2\nnode_mode = %q\n\n[probe]\nenabled = true\n"
 
 	validator, err := configcli.Diff(parseFile(t, fmt.Sprintf(body, "validator")), "")
 	if err != nil {
@@ -467,7 +467,7 @@ func TestDiffFollowsTheModeTheFileRecords(t *testing.T) {
 // disagreement is the thing they need to see, so it is the answer.
 func TestDiffRefusesAModeThatDisagreesWithTheFile(t *testing.T) {
 	registerTyped(t)
-	file := parseFile(t, "schema_version = 1\nnode_mode = \"validator\"\n\n[probe]\nenabled = true\n")
+	file := parseFile(t, "schema_version = 2\nnode_mode = \"validator\"\n\n[probe]\nenabled = true\n")
 
 	_, err := configcli.Diff(file, registry.ModeArchive)
 	if err == nil {
@@ -498,10 +498,10 @@ func TestDiffRefusesAFileWithNoUsableMode(t *testing.T) {
 	registerTyped(t)
 
 	for _, tc := range []struct{ name, body string }{
-		{"absent", "schema_version = 1\n\n[probe]\nenabled = true\n"},
-		{"unknown", "schema_version = 1\nnode_mode = \"archival\"\n"},
-		{"empty", "schema_version = 1\nnode_mode = \"\"\n"},
-		{"not text", "schema_version = 1\nnode_mode = 3\n"},
+		{"absent", "schema_version = 2\n\n[probe]\nenabled = true\n"},
+		{"unknown", "schema_version = 2\nnode_mode = \"archival\"\n"},
+		{"empty", "schema_version = 2\nnode_mode = \"\"\n"},
+		{"not text", "schema_version = 2\nnode_mode = 3\n"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			if _, err := configcli.Diff(parseFile(t, tc.body), ""); err == nil {
@@ -523,9 +523,9 @@ func TestDoctorRefusesAFileWhoseModeItCannotUse(t *testing.T) {
 	registerTyped(t)
 
 	for _, tc := range []struct{ name, body string }{
-		{"absent", "schema_version = 1\n\n[probe]\nenabled = true\n"},
-		{"unknown", "schema_version = 1\nnode_mode = \"archival\"\n\n[probe]\nenabled = true\n"},
-		{"not text", "schema_version = 1\nnode_mode = 3\n"},
+		{"absent", "schema_version = 2\n\n[probe]\nenabled = true\n"},
+		{"unknown", "schema_version = 2\nnode_mode = \"archival\"\n\n[probe]\nenabled = true\n"},
+		{"not text", "schema_version = 2\nnode_mode = 3\n"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			d, err := configcli.Doctor(parseFile(t, tc.body), "")
@@ -549,7 +549,7 @@ func TestDoctorRefusesAFileWhoseModeItCannotUse(t *testing.T) {
 
 	// A usable mode leaves the diagnosis clean and names the mode it checked against, or the
 	// assertions above would hold for a doctor that refused every file.
-	good := parseFile(t, "schema_version = 1\nnode_mode = \"archive\"\n\n[probe]\nenabled = true\n")
+	good := parseFile(t, "schema_version = 2\nnode_mode = \"archive\"\n\n[probe]\nenabled = true\n")
 	d, err := configcli.Doctor(good, "")
 	if err != nil {
 		t.Fatalf("Doctor: %v", err)
@@ -574,7 +574,7 @@ func TestDoctorRefusesAFileWhoseModeItCannotUse(t *testing.T) {
 // the worst place to find out.
 func TestDoctorRefusesAValueItCannotRead(t *testing.T) {
 	registerTyped(t)
-	file := parseFile(t, `schema_version = 1
+	file := parseFile(t, `schema_version = 2
 node_mode = "validator"
 
 [probe]
@@ -629,7 +629,7 @@ endpoint = "sei:8545"
 // per declared type through the same path.
 func TestDoctorAcceptsEveryTypeAFileLegitimatelyHolds(t *testing.T) {
 	registerTyped(t)
-	generated, err := configcli.Generate(registry.ModeValidator)
+	generated, err := configcli.Generate(registry.ModeValidator, "probe-node")
 	if err != nil {
 		t.Fatalf("Generate: %v", err)
 	}
@@ -653,7 +653,7 @@ func TestDoctorExitsNonZeroOnAValueItCannotRead(t *testing.T) {
 	registerTyped(t)
 	home := newHome(t)
 	if err := os.WriteFile(configcli.Path(home),
-		[]byte("schema_version = 1\nnode_mode = \"validator\"\n\n[probe]\nworkers = \"banana\"\n"),
+		[]byte("schema_version = 2\nnode_mode = \"validator\"\n\n[probe]\nworkers = \"banana\"\n"),
 		0o600); err != nil {
 		t.Fatalf("seed: %v", err)
 	}
@@ -707,7 +707,7 @@ func registerRuled(t *testing.T) {
 // is a fact only the section knows. Without this the node refuses it at its next start.
 func TestDoctorRefusesAValueASectionRejects(t *testing.T) {
 	registerRuled(t)
-	file := parseFile(t, "schema_version = 1\nnode_mode = \"validator\"\n\n[ruled]\nwrite_mode = \"backwards\"\n")
+	file := parseFile(t, "schema_version = 2\nnode_mode = \"validator\"\n\n[ruled]\nwrite_mode = \"backwards\"\n")
 
 	d, err := configcli.Doctor(file, "")
 	if err != nil {
@@ -742,8 +742,8 @@ func TestDoctorAcceptsAValueASectionAllows(t *testing.T) {
 	registerRuled(t)
 
 	for _, tc := range []struct{ name, body string }{
-		{"inside the rule", "schema_version = 1\nnode_mode = \"validator\"\n\n[ruled]\nwrite_mode = \"async\"\n"},
-		{"nothing written", "schema_version = 1\nnode_mode = \"validator\"\n"},
+		{"inside the rule", "schema_version = 2\nnode_mode = \"validator\"\n\n[ruled]\nwrite_mode = \"async\"\n"},
+		{"nothing written", "schema_version = 2\nnode_mode = \"validator\"\n"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			d, err := configcli.Doctor(parseFile(t, tc.body), "")
@@ -766,8 +766,8 @@ func TestASectionIsNotAskedAboutValuesItCannotHaveSeen(t *testing.T) {
 	registerRuled(t)
 
 	for _, tc := range []struct{ name, body string }{
-		{"an unusable mode", "schema_version = 1\nnode_mode = \"archival\"\n\n[ruled]\nwrite_mode = \"sync\"\n"},
-		{"an unreadable value", "schema_version = 1\nnode_mode = \"validator\"\n\n[ruled]\nwrite_mode = 7\n"},
+		{"an unusable mode", "schema_version = 2\nnode_mode = \"archival\"\n\n[ruled]\nwrite_mode = \"sync\"\n"},
+		{"an unreadable value", "schema_version = 2\nnode_mode = \"validator\"\n\n[ruled]\nwrite_mode = 7\n"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			d, err := configcli.Doctor(parseFile(t, tc.body), "")

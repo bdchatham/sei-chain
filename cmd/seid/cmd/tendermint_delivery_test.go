@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"strings"
 	"testing"
 
 	"go.opentelemetry.io/otel/sdk/trace"
@@ -25,7 +26,7 @@ import (
 // TestASeiTomlValueReachesTheTendermintConfig is the property the whole config.toml migration rests on.
 func TestASeiTomlValueReachesTheTendermintConfig(t *testing.T) {
 	configtest.Isolate(t)
-	ctx := bootWithSeiToml(t, "schema_version = 1\nnode_mode = \"validator\"\n\n"+
+	ctx := bootWithSeiToml(t, "schema_version = 2\nnode_mode = \"validator\"\n\n"+
 		"[instrumentation]\nprometheus = true\nmax-open-connections = 41\n")
 
 	if ctx.Config == nil {
@@ -77,7 +78,7 @@ func TestAnUnwrittenTendermintKeyKeepsWhatConfigTomlSaid(t *testing.T) {
 	}
 	// sei.toml says nothing about this section at all.
 	if err := os.WriteFile(filepath.Join(dir, "sei.toml"),
-		[]byte("schema_version = 1\nnode_mode = \"validator\"\n"), 0o600); err != nil {
+		[]byte("schema_version = 2\nnode_mode = \"validator\"\n"), 0o600); err != nil {
 		t.Fatalf("write sei.toml: %v", err)
 	}
 
@@ -101,7 +102,7 @@ func TestAnUnwrittenTendermintKeyKeepsWhatConfigTomlSaid(t *testing.T) {
 // agree, which is most of a fleet.
 func TestAnUnwrittenTendermintKeyKeepsTheDefaultWhenNoFileSaysOtherwise(t *testing.T) {
 	configtest.Isolate(t)
-	ctx := bootWithSeiToml(t, "schema_version = 1\nnode_mode = \"validator\"\n\n"+
+	ctx := bootWithSeiToml(t, "schema_version = 2\nnode_mode = \"validator\"\n\n"+
 		"[instrumentation]\nprometheus = true\n")
 
 	// Written, so it moves.
@@ -125,7 +126,7 @@ func TestAnUnwrittenTendermintKeyKeepsTheDefaultWhenNoFileSaysOtherwise(t *testi
 // until the same values have decoded into a throwaway of the same type.
 func TestATendermintValueTheNodeRefusesLeavesTheConfigurationAlone(t *testing.T) {
 	configtest.Isolate(t)
-	ctx := bootWithSeiToml(t, "schema_version = 1\nnode_mode = \"validator\"\n\n"+
+	ctx := bootWithSeiToml(t, "schema_version = 2\nnode_mode = \"validator\"\n\n"+
 		"[instrumentation]\nprometheus = true\nmax-open-connections = \"not a number\"\n")
 
 	if ctx.Config == nil {
@@ -148,7 +149,7 @@ func TestATendermintValueTheNodeRefusesLeavesTheConfigurationAlone(t *testing.T)
 // empty string cannot find its data directory, its genesis file or its signing key.
 func TestTheDeliveryLeavesTheRootDirectoryAlone(t *testing.T) {
 	configtest.Isolate(t)
-	ctx := bootWithSeiToml(t, "schema_version = 1\nnode_mode = \"validator\"\n\n"+
+	ctx := bootWithSeiToml(t, "schema_version = 2\nnode_mode = \"validator\"\n\n"+
 		"[instrumentation]\nprometheus = true\n")
 
 	if !ctx.Config.Instrumentation.Prometheus {
@@ -187,15 +188,21 @@ func TestAWrittenListReplacesTheOneTheNodeHad(t *testing.T) {
 	if err != nil {
 		t.Fatalf("read the fixture: %v", err)
 	}
+	// Written the way the Tendermint template writes it, as one comma-joined string, because that is
+	// what a node's file holds. Viper splits it back into a list on the boot's own decode. A fixture
+	// using the list form exercises a shape no node has, and the advisory read of that file fails.
 	edited := regexp.MustCompile(`(?m)^rpc-servers = .*$`).
-		ReplaceAll(raw, []byte(`rpc-servers = ["old-1:26657", "old-2:26657", "old-3:26657"]`))
+		ReplaceAll(raw, []byte(`rpc-servers = "old-1:26657,old-2:26657,old-3:26657"`))
 	if string(edited) == string(raw) {
 		t.Fatal("the fixture set no servers in config.toml, so replacement cannot be told from anything")
+	}
+	if !strings.Contains(string(edited), `"old-1:26657,old-2:26657,old-3:26657"`) {
+		t.Fatal("the fixture is not in the form the template writes, so it is exercising a file no node has")
 	}
 	if err := os.WriteFile(path, edited, 0o600); err != nil {
 		t.Fatalf("write the fixture: %v", err)
 	}
-	if err := os.WriteFile(filepath.Join(dir, "sei.toml"), []byte("schema_version = 1\n"+
+	if err := os.WriteFile(filepath.Join(dir, "sei.toml"), []byte("schema_version = 2\n"+
 		"node_mode = \"validator\"\n\n[statesync]\nrpc-servers = [\"new-1:26657\", \"new-2:26657\"]\n"),
 		0o600); err != nil {
 		t.Fatalf("write sei.toml: %v", err)
@@ -239,7 +246,7 @@ func TestADeliveredLogLevelReachesTheLogger(t *testing.T) {
 		t.Fatalf("the logger already sits at %v, so this fixture cannot show it moving", before)
 	}
 
-	ctx := bootWithSeiToml(t, "schema_version = 1\nnode_mode = \"validator\"\nlog-level = \"warn\"\n")
+	ctx := bootWithSeiToml(t, "schema_version = 2\nnode_mode = \"validator\"\nlog-level = \"warn\"\n")
 
 	if got := ctx.Config.LogLevel; got != "warn" {
 		t.Errorf("sei.toml set the log level to warn and the configuration says %q", got)

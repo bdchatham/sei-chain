@@ -46,7 +46,7 @@ func render(t *testing.T, f *seitoml.File) string {
 func TestGenerateWritesEveryDeclaredKeyAtTheModesBaseline(t *testing.T) {
 	registerGiga(t)
 
-	file, err := configcli.Generate(registry.ModeArchive)
+	file, err := configcli.Generate(registry.ModeArchive, "probe-node")
 	if err != nil {
 		t.Fatalf("Generate: %v", err)
 	}
@@ -95,11 +95,11 @@ func TestGenerateFollowsTheModeItWasGiven(t *testing.T) {
 	// whatever giga's defaults happen to be.
 	registerTyped(t)
 
-	archive, err := configcli.Generate(registry.ModeArchive)
+	archive, err := configcli.Generate(registry.ModeArchive, "probe-node")
 	if err != nil {
 		t.Fatalf("Generate(archive): %v", err)
 	}
-	validator, err := configcli.Generate(registry.ModeValidator)
+	validator, err := configcli.Generate(registry.ModeValidator, "probe-node")
 	if err != nil {
 		t.Fatalf("Generate(validator): %v", err)
 	}
@@ -120,11 +120,11 @@ func TestGenerateFollowsTheModeItWasGiven(t *testing.T) {
 func TestGenerateIsByteStable(t *testing.T) {
 	registerGiga(t)
 
-	first, err := configcli.Generate(registry.ModeValidator)
+	first, err := configcli.Generate(registry.ModeValidator, "probe-node")
 	if err != nil {
 		t.Fatalf("Generate: %v", err)
 	}
-	second, err := configcli.Generate(registry.ModeValidator)
+	second, err := configcli.Generate(registry.ModeValidator, "probe-node")
 	if err != nil {
 		t.Fatalf("Generate: %v", err)
 	}
@@ -163,7 +163,7 @@ func TestGenerateWritesKeysInSortedOrder(t *testing.T) {
 		t.Fatalf("registering the probe section produced a defect: %v", d.Err)
 	}
 
-	file, err := configcli.Generate(registry.ModeValidator)
+	file, err := configcli.Generate(registry.ModeValidator, "probe-node")
 	if err != nil {
 		t.Fatalf("Generate: %v", err)
 	}
@@ -196,7 +196,7 @@ func TestGenerateWritesKeysInSortedOrder(t *testing.T) {
 func TestAGeneratedFileSaysItsValuesAreCommitments(t *testing.T) {
 	registerGiga(t)
 
-	file, err := configcli.Generate(registry.ModeArchive)
+	file, err := configcli.Generate(registry.ModeArchive, "probe-node")
 	if err != nil {
 		t.Fatalf("Generate: %v", err)
 	}
@@ -228,7 +228,7 @@ func TestAGeneratedFileSaysItsValuesAreCommitments(t *testing.T) {
 // once on the same node. A preamble appended each time would grow the file's header without bound.
 func TestRegeneratingDoesNotStackPreambles(t *testing.T) {
 	registerGiga(t)
-	file, err := configcli.Generate(registry.ModeValidator)
+	file, err := configcli.Generate(registry.ModeValidator, "probe-node")
 	if err != nil {
 		t.Fatalf("Generate: %v", err)
 	}
@@ -255,7 +255,7 @@ func TestRegeneratingDoesNotStackPreambles(t *testing.T) {
 func TestGenerateRefusesAModeNoNodeRuns(t *testing.T) {
 	registerGiga(t)
 
-	if _, err := configcli.Generate(registry.Mode("archival")); err == nil {
+	if _, err := configcli.Generate(registry.Mode("archival"), "probe-node"); err == nil {
 		t.Error("generate accepted a mode no node runs, so it would write a complete file whose " +
 			"every value came from a baseline function's default branch")
 	}
@@ -269,7 +269,7 @@ func TestGenerateRefusesAModeNoNodeRuns(t *testing.T) {
 func TestGenerateRefusesAnEmptyRegistry(t *testing.T) {
 	registry.Reset()
 
-	if _, err := configcli.Generate(registry.ModeValidator); err == nil {
+	if _, err := configcli.Generate(registry.ModeValidator, "probe-node"); err == nil {
 		t.Error("generate produced a file from an empty registry, which reads as a node with " +
 			"nothing to configure")
 	}
@@ -289,7 +289,7 @@ func TestDoctorRefusesAnUnrecognizedStableKeyAndPermitsExperimental(t *testing.T
 		Name: "probe.workers", Default: 8, Owner: "configtest", Since: "v6.6.0",
 	})
 
-	file := parseFile(t, `schema_version = 1
+	file := parseFile(t, `schema_version = 2
 node_mode = "validator"
 
 [giga_executor]
@@ -319,7 +319,7 @@ probe.unknown = 1
 	}
 
 	// The refusal direction, on the same declared set.
-	broken := parseFile(t, "schema_version = 1\nnode_mode = \"validator\"\n\n[giga_executor]\nnot_a_key = true\n")
+	broken := parseFile(t, "schema_version = 2\nnode_mode = \"validator\"\n\n[giga_executor]\nnot_a_key = true\n")
 	d, err = configcli.Doctor(broken, "")
 	if err != nil {
 		t.Fatalf("Doctor: %v", err)
@@ -342,7 +342,7 @@ func TestDoctorPassesAFileGenerateJustWrote(t *testing.T) {
 	registerGiga(t)
 	experimental.Reset()
 
-	file, err := configcli.Generate(registry.ModeValidator)
+	file, err := configcli.Generate(registry.ModeValidator, "probe-node")
 	if err != nil {
 		t.Fatalf("Generate: %v", err)
 	}
@@ -374,7 +374,7 @@ func TestDoctorReportsARetiredExperimentalKeySeparately(t *testing.T) {
 		Name: "probe.old", Type: "int", Owner: "configtest", Since: "v6.5.0", RetiredIn: "v6.7.0",
 	})
 
-	file := parseFile(t, "schema_version = 1\nnode_mode = \"validator\"\n\n[experimental]\nprobe.old = 1\n")
+	file := parseFile(t, "schema_version = 2\nnode_mode = \"validator\"\n\n[experimental]\nprobe.old = 1\n")
 
 	d, err := configcli.Doctor(file, "")
 	if err != nil {
@@ -401,7 +401,7 @@ func TestDoctorIgnoresKeysTheFileDoesNotWrite(t *testing.T) {
 	registerGiga(t)
 	experimental.Reset()
 
-	d, err := configcli.Doctor(parseFile(t, "schema_version = 1\nnode_mode = \"validator\"\n"), "")
+	d, err := configcli.Doctor(parseFile(t, "schema_version = 2\nnode_mode = \"validator\"\n"), "")
 	if err != nil {
 		t.Fatalf("Doctor: %v", err)
 	}
@@ -436,7 +436,7 @@ func TestDoctorNamesTheKeysTheEnvironmentTakesFromTheFile(t *testing.T) {
 	registerGiga(t)
 	t.Setenv(registry.EnvName(gigaconfig.FlagEnabled), "false")
 
-	file := parseFile(t, `schema_version = 1
+	file := parseFile(t, `schema_version = 2
 node_mode = "validator"
 
 [giga_executor]
@@ -481,7 +481,7 @@ func TestDoctorRefusesAValueOnlyTheEnvironmentSupplies(t *testing.T) {
 	t.Setenv(registry.EnvName("probe.backend"), "rocksdb")
 
 	// The file itself is fine. Only the environment holds the unusable value.
-	file := parseFile(t, `schema_version = 1
+	file := parseFile(t, `schema_version = 2
 node_mode = "validator"
 
 [probe]
@@ -536,7 +536,7 @@ func TestDoctorNamesAVariableTheEnvironmentCannotDeliver(t *testing.T) {
 	}
 	t.Setenv(registry.EnvName("probe.rows"), "a=b")
 
-	d, err := configcli.Doctor(parseFile(t, "schema_version = 1\nnode_mode = \"validator\"\n"), "")
+	d, err := configcli.Doctor(parseFile(t, "schema_version = 2\nnode_mode = \"validator\"\n"), "")
 	if err != nil {
 		t.Fatalf("Doctor: %v", err)
 	}
@@ -638,5 +638,52 @@ func TestAWarningOnlyDiagnosisIsHealthy(t *testing.T) {
 	if !warned.Healthy() {
 		t.Errorf("a diagnosis holding only warnings reads unhealthy, so doctor exits non-zero and a "+
 			"deploy gate refuses a boot the node allows: %q", warned.WhyUnhealthy())
+	}
+}
+
+// TestDoctorReportsBothDirectionsOfASchemaGap holds the one asymmetry that matters here.
+//
+// A file behind this binary is waiting for a migration and the node runs correctly until it is run, so
+// doctor says so and exits zero. A file ahead of it was written by a newer seid and no upgrade moves a
+// file backwards, so that one halts: a deploy gating on doctor has to stop before the restart does.
+func TestDoctorReportsBothDirectionsOfASchemaGap(t *testing.T) {
+	registerTyped(t)
+	current := seitoml.CurrentVersion()
+	if current < 2 {
+		t.Skip("the chain produces version 1, so no file can be behind it")
+	}
+
+	behind := parseFile(t, fmt.Sprintf("schema_version = %d\nnode_mode = \"validator\"\n", current-1))
+	d, err := configcli.Doctor(behind, "")
+	if err != nil {
+		t.Fatalf("Doctor: %v", err)
+	}
+	if !d.Schema.Behind() || d.Schema.Pending == 0 {
+		t.Errorf("a file one version back reports %+v, want a pending migration", d.Schema)
+	}
+	if !d.Healthy() {
+		t.Errorf("a file waiting for a migration reads unhealthy (%q). The node runs correctly until "+
+			"the migration is run, so halting a deploy on it turns maintenance into an outage",
+			d.WhyUnhealthy())
+	}
+	if !strings.Contains(d.Report(), "upgrade") {
+		t.Errorf("the report does not name the verb that fixes it:\n%s", d.Report())
+	}
+
+	ahead := parseFile(t, fmt.Sprintf("schema_version = %d\nnode_mode = \"validator\"\n", current+1))
+	d, err = configcli.Doctor(ahead, "")
+	if err != nil {
+		t.Fatalf("Doctor: %v", err)
+	}
+	if !d.Schema.Ahead() {
+		t.Errorf("a file one version forward reports %+v, want ahead", d.Schema)
+	}
+	if d.Healthy() {
+		t.Error("a file written by a newer seid reads healthy. Its keys follow a schema this binary " +
+			"does not have, upgrading cannot move a file backwards, and a deploy gating on doctor " +
+			"would let the node through")
+	}
+	if !strings.Contains(d.WhyUnhealthy(), "newer seid") {
+		t.Errorf("the exit does not say the file came from a newer binary: %q", d.WhyUnhealthy())
 	}
 }

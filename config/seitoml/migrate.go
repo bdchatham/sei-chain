@@ -2,6 +2,7 @@ package seitoml
 
 import (
 	"fmt"
+	"os"
 	"sort"
 )
 
@@ -69,6 +70,13 @@ func Migrations() []Migration {
 // produces. A crash part way through leaves a file at an earlier valid version that the next run
 // carries forward, rather than one whose contents belong to no version at all.
 //
+// Each step keeps the file it is about to change, at <path>.v<version it currently claims>. There is no
+// reverse chain and there cannot be a general one: the rewrites a migration is built from are not all
+// invertible, and the one that has shipped maps two spellings onto one, so undoing it would rewrite
+// files that always held the second back to a first they never held. A kept copy asks nothing of the
+// rewrites. Rolling a node back to an older binary is then a file copy, and the copies are per step, so
+// the granularity matches the binary versions somebody can roll back to.
+//
 // With dryRun set this writes nothing and returns exactly the steps a real run performs, which is
 // what makes a preview worth trusting.
 //
@@ -93,6 +101,11 @@ func Upgrade(path string, chain []Migration, dryRun bool, generatedBy string) ([
 
 	steps := make([]Step, 0, len(pending))
 	for _, m := range pending {
+		if !dryRun {
+			if err := keepCopy(path, m.To-1); err != nil {
+				return steps, err
+			}
+		}
 		step, err := apply(file, m)
 		if err != nil {
 			return steps, fmt.Errorf("migrating to version %d (%s): %w", m.To, m.Summary, err)
@@ -108,6 +121,30 @@ func Upgrade(path string, chain []Migration, dryRun bool, generatedBy string) ([
 		steps = append(steps, step)
 	}
 	return steps, nil
+}
+
+// KeptCopyPath is where Upgrade leaves the file as it stood at a version.
+func KeptCopyPath(path string, version int) string {
+	return fmt.Sprintf("%s.v%d", path, version)
+}
+
+// keepCopy writes the file aside before a step changes it.
+//
+// Read and written rather than renamed, because the original has to stay where it is: the node reads
+// that path, and a rename would leave it absent for as long as the step takes.
+//
+// An existing copy is replaced. A file back at a version it already has a copy of was regenerated or
+// restored, so the copy beside it describes a file that no longer exists.
+func keepCopy(path string, version int) error {
+	raw, err := os.ReadFile(path) // #nosec G304 -- the path the caller is already upgrading
+	if err != nil {
+		return fmt.Errorf("read %s to keep a copy before upgrading: %w", path, err)
+	}
+	kept := KeptCopyPath(path, version)
+	if err := os.WriteFile(kept, raw, 0o600); err != nil {
+		return fmt.Errorf("keep a copy at %s: %w", kept, err)
+	}
+	return nil
 }
 
 // apply runs one migration and records which keys it moved.
