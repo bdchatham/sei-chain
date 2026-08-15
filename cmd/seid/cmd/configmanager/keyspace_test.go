@@ -41,7 +41,7 @@ func TestTheBootSaysWhichChannelSuppliedAValue(t *testing.T) {
 	root := writeMinimalHome(t, "mode = \"full\"\n", "")
 
 	// The file writes one declared key, and the environment takes a second one.
-	seiToml := "schema_version = 1\nnode_mode = \"full\"\n\n[giga_executor]\nenabled = true\n"
+	seiToml := "schema_version = 2\nnode_mode = \"full\"\n\n[giga_executor]\nenabled = true\n"
 	path := filepath.Join(root, "config", seiTomlName)
 	require.NoError(t, os.WriteFile(path, []byte(seiToml), 0o600))
 	t.Setenv(registry.EnvName("receipt-store.rs-backend"), "littidx")

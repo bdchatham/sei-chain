@@ -357,7 +357,7 @@ func TestAdoptedAndGeneratedFilesDifferWhereTheNodeDoes(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Adopt: %v", err)
 	}
-	generated, err := configcli.Generate(registry.ModeValidator)
+	generated, err := configcli.Generate(registry.ModeValidator, "probe-node")
 	if err != nil {
 		t.Fatalf("Generate: %v", err)
 	}

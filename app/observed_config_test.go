@@ -186,7 +186,7 @@ func TestGenerateCoversExactlyWhatTheConstructionReadsForAMigratedSection(t *tes
 			"that wrote nothing", section)
 	}
 
-	file, err := configcli.Generate(registry.ModeValidator)
+	file, err := configcli.Generate(registry.ModeValidator, "probe-node")
 	if err != nil {
 		t.Fatalf("Generate: %v", err)
 	}

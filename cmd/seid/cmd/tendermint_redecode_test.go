@@ -162,10 +162,10 @@ func TestASecondDecodeOfTheWholeSourceMovesFieldsNobodyWrote(t *testing.T) {
 		boot func(*testing.T) *server.Context
 	}{
 		{"with a config.toml", func(t *testing.T) *server.Context {
-			return bootWithConfigToml(t, "schema_version = 1\nnode_mode = \"validator\"\n")
+			return bootWithConfigToml(t, "schema_version = 2\nnode_mode = \"validator\"\n")
 		}},
 		{"without one", func(t *testing.T) *server.Context {
-			return bootWithSeiToml(t, "schema_version = 1\nnode_mode = \"validator\"\n")
+			return bootWithSeiToml(t, "schema_version = 2\nnode_mode = \"validator\"\n")
 		}},
 	} {
 		t.Run(c.name, func(t *testing.T) {
@@ -215,7 +215,7 @@ func TestASecondDecodeOfTheWholeSourceMovesFieldsNobodyWrote(t *testing.T) {
 // start.
 func TestTheRootDirectorySurvivesASecondDecode(t *testing.T) {
 	configtest.Isolate(t)
-	ctx := bootWithConfigToml(t, "schema_version = 1\nnode_mode = \"validator\"\n")
+	ctx := bootWithConfigToml(t, "schema_version = 2\nnode_mode = \"validator\"\n")
 
 	root := ctx.Config.RootDir
 	if root == "" {

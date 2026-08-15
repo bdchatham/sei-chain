@@ -2,6 +2,7 @@ package configcli
 
 import (
 	"fmt"
+	"os"
 	"sort"
 
 	"github.com/sei-protocol/sei-chain/config/registry"
@@ -9,7 +10,10 @@ import (
 	"github.com/sei-protocol/sei-chain/sei-cosmos/version"
 )
 
-// Generate renders the complete configuration for a node mode.
+// MonikerKey is the node's name, and the one generated value this binary will not invent.
+const MonikerKey = "moniker"
+
+// Generate renders the complete configuration for one node.
 //
 // This writes every declared key at the baseline for that mode, so the file holds the whole picture
 // of what the node runs the moment it is generated.
@@ -18,9 +22,19 @@ import (
 // generated node does not follow a baseline a later release changes: it keeps the value the file
 // records, and regenerating moves it forward. The preamble says so in the file, because an operator
 // reading it otherwise cannot tell a value they chose from one generate filled in.
-func Generate(mode registry.Mode) (*seitoml.File, error) {
+//
+// The moniker is required rather than defaulted. Its baseline is the host name of whatever machine
+// asked, so a file generated anywhere but the node it describes would carry another machine's identity,
+// and a file copied to twenty nodes would give all twenty the same name. Taking it as an argument is
+// what makes the file describe one node, which is what every value in it assumes.
+func Generate(mode registry.Mode, moniker string) (*seitoml.File, error) {
 	if err := knownMode(mode); err != nil {
 		return nil, err
+	}
+	if moniker == "" {
+		return nil, fmt.Errorf("generate needs a moniker: it names the node this file is for, and its " +
+			"default is the host name of whichever machine runs this command, so leaving it out writes " +
+			"one node's identity into another node's configuration")
 	}
 	resolved, err := registry.Resolve(mode)
 	if err != nil {
@@ -40,11 +54,39 @@ func Generate(mode registry.Mode) (*seitoml.File, error) {
 	// Sorted, so two runs of the same binary produce the same bytes and a diff between two nodes
 	// compares configuration rather than map iteration order.
 	for _, key := range sortedKeys(resolved) {
-		if err := file.Set(key, resolved.Keys[key].Value); err != nil {
+		value := resolved.Keys[key].Value
+		if key == MonikerKey {
+			value = moniker
+		}
+		if err := file.Set(key, value); err != nil {
 			return nil, fmt.Errorf("write %s: %w", key, err)
 		}
 	}
 	return file, nil
+}
+
+// HostDerivedElsewhere names the keys a file would carry from this machine rather than from the node it
+// describes, and is empty when the two are the same machine.
+//
+// The moniker is taken as an argument, so it is right wherever this runs. The rest of the host-derived
+// keys are not: they scale with the processor count of whichever machine resolved them. Generating on
+// the node makes them right, and generating for a node elsewhere makes them this machine's.
+//
+// The moniker is what tells the two apart. It is the operator's statement of which node the file is for,
+// so a moniker that is not this host's name is the one moment this can say the values came from
+// somewhere else.
+func HostDerivedElsewhere(moniker string) []string {
+	host, err := os.Hostname()
+	if err != nil || host == moniker {
+		return nil
+	}
+	var elsewhere []string
+	for _, key := range registry.HostDerivedKeys() {
+		if key != MonikerKey {
+			elsewhere = append(elsewhere, key)
+		}
+	}
+	return elsewhere
 }
 
 // preamble is what the generated file says about itself.

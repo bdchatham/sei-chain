@@ -21,6 +21,13 @@ const FileName = "sei.toml"
 // flagMode names the node mode a verb resolves baselines for.
 const flagMode = "mode"
 
+// flagMoniker names the node a generated file is for.
+//
+// Required, because the moniker's default is the host name of whichever machine runs the command and a
+// file is for one node. --from-legacy does not need it: it reads the node's own configuration, which
+// already holds the name that node runs under.
+const flagMoniker = "moniker"
+
 // flagFromLegacy asks generate to carry an existing node's configuration over rather than write
 // defaults.
 //
@@ -107,10 +114,16 @@ func generateCmd(defaultHome string) *cobra.Command {
 				}
 				return adoptInto(cmd, path, home, mode)
 			}
-			return writeDefaults(cmd, path, mode)
+			moniker, err := cmd.Flags().GetString(flagMoniker)
+			if err != nil {
+				return err
+			}
+			return writeDefaults(cmd, path, mode, moniker)
 		},
 	}
 	cmd.Flags().String(flagMode, "", modeUsage())
+	cmd.Flags().String(flagMoniker, "", "The name of the node this file is for (required without "+
+		"--from-legacy); its default is this machine's host name, which is not the node's")
 	cmd.Flags().Bool("force", false, "Replace an existing file, discarding every value in it")
 	cmd.Flags().Bool(flagFromLegacy, false,
 		"Build the file from this node's existing app.toml and config.toml instead of from defaults")
@@ -137,15 +150,28 @@ func refuseUnlessForced(cmd *cobra.Command, path string) error {
 }
 
 // writeDefaults builds the file from this binary's defaults and reports where it landed.
-func writeDefaults(cmd *cobra.Command, path string, mode registry.Mode) error {
-	file, err := Generate(mode)
+//
+// The report names the values that came from this machine rather than from the node the file is for.
+// They are correct when this runs on that node and this machine's when it does not, and the moniker is
+// what says which of the two happened.
+func writeDefaults(cmd *cobra.Command, path string, mode registry.Mode, moniker string) error {
+	file, err := Generate(mode, moniker)
 	if err != nil {
 		return err
 	}
 	if err := file.Save(path); err != nil {
 		return err
 	}
-	cmd.Printf("Wrote %s for %q mode.\n", path, mode)
+	cmd.Printf("Wrote %s for %q mode, as node %q.\n", path, mode, moniker)
+
+	if elsewhere := HostDerivedElsewhere(moniker); len(elsewhere) > 0 {
+		cmd.Printf("\n%d setting(s) were resolved from this machine rather than from %q, because their "+
+			"defaults scale with a machine's processor count:\n", len(elsewhere), moniker)
+		for _, key := range elsewhere {
+			cmd.Printf("  %s\n", key)
+		}
+		cmd.Printf("Generate on the node itself, or set them, if it is a different size.\n")
+	}
 	return nil
 }
 

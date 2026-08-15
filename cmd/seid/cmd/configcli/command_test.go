@@ -55,7 +55,7 @@ func TestTheVerbsWorkEndToEndThroughTheCommandTree(t *testing.T) {
 	home := newHome(t)
 	path := configcli.Path(home)
 
-	if out, err := invoke(t, home, "generate", "--mode", "validator"); err != nil {
+	if out, err := invoke(t, home, "generate", "--mode", "validator", "--moniker", "probe-node"); err != nil {
 		t.Fatalf("generate: %v\n%s", err, out)
 	}
 	if _, err := os.Stat(path); err != nil {
@@ -117,14 +117,14 @@ func TestGenerateWillNotSilentlyReplaceAnExistingFile(t *testing.T) {
 	home := newHome(t)
 	path := configcli.Path(home)
 
-	if out, err := invoke(t, home, "generate", "--mode", "validator"); err != nil {
+	if out, err := invoke(t, home, "generate", "--mode", "validator", "--moniker", "probe-node"); err != nil {
 		t.Fatalf("generate: %v\n%s", err, out)
 	}
 	if _, err := invoke(t, home, "set", "probe.workers", "16"); err != nil {
 		t.Fatalf("set: %v", err)
 	}
 
-	out, err := invoke(t, home, "generate", "--mode", "validator")
+	out, err := invoke(t, home, "generate", "--mode", "validator", "--moniker", "probe-node")
 	if err == nil {
 		t.Fatalf("generate replaced an existing file without being asked:\n%s", out)
 	}
@@ -137,7 +137,7 @@ func TestGenerateWillNotSilentlyReplaceAnExistingFile(t *testing.T) {
 	}
 
 	// And with --force it does replace it, or the refusal above would be a dead end.
-	if out, err := invoke(t, home, "generate", "--mode", "validator", "--force"); err != nil {
+	if out, err := invoke(t, home, "generate", "--mode", "validator", "--moniker", "probe-node", "--force"); err != nil {
 		t.Fatalf("generate --force: %v\n%s", err, out)
 	}
 	if got := valuesAt(t, path)["probe.workers"]; got != int64(4) {
@@ -153,7 +153,7 @@ func TestDoctorExitsNonZeroOnAnUnrecognizedKey(t *testing.T) {
 	registerTyped(t)
 	home := newHome(t)
 	if err := os.WriteFile(configcli.Path(home),
-		[]byte("schema_version = 1\nnode_mode = \"validator\"\n\n[probe]\nnot_a_key = 1\n"), 0o600); err != nil {
+		[]byte("schema_version = 2\nnode_mode = \"validator\"\n\n[probe]\nnot_a_key = 1\n"), 0o600); err != nil {
 		t.Fatalf("seed: %v", err)
 	}
 
@@ -171,7 +171,7 @@ func TestDoctorExitsNonZeroOnAnUnrecognizedKey(t *testing.T) {
 func TestUpgradeOnACurrentFileSaysSoAndWritesNothing(t *testing.T) {
 	registerTyped(t)
 	home := newHome(t)
-	if out, err := invoke(t, home, "generate", "--mode", "validator"); err != nil {
+	if out, err := invoke(t, home, "generate", "--mode", "validator", "--moniker", "probe-node"); err != nil {
 		t.Fatalf("generate: %v\n%s", err, out)
 	}
 	before, err := os.ReadFile(configcli.Path(home)) //nolint:gosec // a path under t.TempDir
@@ -271,7 +271,7 @@ func TestTheInheritedHomeFlagIsWhatDecidesThePath(t *testing.T) {
 	var out bytes.Buffer
 	parent.SetOut(&out)
 	parent.SetErr(&out)
-	parent.SetArgs([]string{"generate", "--mode", "validator", "--" + flags.FlagHome, home})
+	parent.SetArgs([]string{"generate", "--mode", "validator", "--moniker", "probe-node", "--" + flags.FlagHome, home})
 	if err := parent.Execute(); err != nil {
 		t.Fatalf("generate: %v\n%s", err, out.String())
 	}
@@ -359,7 +359,7 @@ func TestGenerateFromLegacyCarriesTheNodesExistingValues(t *testing.T) {
 		t.Fatalf("seed config.toml: %v", err)
 	}
 
-	out, err := invoke(t, home, "generate", "--mode", "validator", "--from-legacy")
+	out, err := invoke(t, home, "generate", "--mode", "validator", "--moniker", "probe-node", "--from-legacy")
 	if err != nil {
 		t.Fatalf("generate --from-legacy: %v\n%s", err, out)
 	}
@@ -381,7 +381,7 @@ func TestGenerateFromLegacyCarriesTheNodesExistingValues(t *testing.T) {
 	if err := os.Remove(configcli.Path(home)); err != nil {
 		t.Fatalf("remove: %v", err)
 	}
-	if out, err := invoke(t, home, "generate", "--mode", "validator"); err != nil {
+	if out, err := invoke(t, home, "generate", "--mode", "validator", "--moniker", "probe-node"); err != nil {
 		t.Fatalf("generate: %v\n%s", err, out)
 	}
 	if got := valuesAt(t, configcli.Path(home))["probe.workers"]; got != int64(4) {
@@ -398,7 +398,7 @@ func TestGenerateFromLegacySaysSoWhenThereIsNothingToAdopt(t *testing.T) {
 	registerTyped(t)
 	home := newHome(t)
 
-	_, err := invoke(t, home, "generate", "--mode", "validator", "--from-legacy")
+	_, err := invoke(t, home, "generate", "--mode", "validator", "--moniker", "probe-node", "--from-legacy")
 	if err == nil {
 		t.Fatal("generate --from-legacy succeeded on a home with no existing configuration, so a file " +
 			"of pure defaults would be reported as an adoption")
@@ -424,7 +424,7 @@ func TestGenerateFromLegacyReadsOnlyTheFiles(t *testing.T) {
 	}
 	t.Setenv(registry.EnvName("probe.endpoint"), "from-the-environment")
 
-	out, err := invoke(t, home, "generate", "--mode", "validator", "--from-legacy")
+	out, err := invoke(t, home, "generate", "--mode", "validator", "--moniker", "probe-node", "--from-legacy")
 	if err != nil {
 		t.Fatalf("generate --from-legacy: %v\n%s", err, out)
 	}
@@ -469,7 +469,7 @@ func TestGenerateRefusesWithoutAMode(t *testing.T) {
 		})
 	}
 	// And naming one works, or the refusal above would be a dead end.
-	if out, err := invoke(t, home, "generate", "--mode", "archive"); err != nil {
+	if out, err := invoke(t, home, "generate", "--mode", "archive", "--moniker", "probe-node"); err != nil {
 		t.Fatalf("generate --mode archive: %v\n%s", err, out)
 	}
 	if got := valuesAt(t, configcli.Path(home)); len(got) == 0 {
