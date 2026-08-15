@@ -25,9 +25,6 @@ db-backend
 db-dir
 genesis-file
 hash-vault-disabled-unsafe
-instrumentation.max-open-connections
-instrumentation.prometheus
-instrumentation.prometheus-listen-addr
 log-format
 log-level
 mempool.broadcast

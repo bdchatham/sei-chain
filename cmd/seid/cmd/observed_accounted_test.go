@@ -161,7 +161,13 @@ func TestEveryDeclaredKeyIsReadBySomething(t *testing.T) {
 		observed[key] = true
 	}
 	for _, section := range registry.Sections() {
-		if _, named := readByTheServerConfigReader[section.Name]; !named {
+		// A section the upstream reader covers, named with what proves its keys are read.
+		_, named := readByTheServerConfigReader[section.Name]
+		// Or one read by a decode rather than a lookup. This census records lookups, so those keys have
+		// none to record, and the declaration is itself the reason: a section that reaches its reader by
+		// being decoded into a struct is delivered by deliverDecodedSections and covered by the schema
+		// check that writes a value under each key and asks the struct which field moved.
+		if !named && !registry.DecodedNotLookedUp(section.Name) {
 			continue
 		}
 		for _, key := range section.Keys {

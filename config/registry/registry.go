@@ -463,6 +463,7 @@ func Reset() {
 	zeroWhenAbsent = map[string]bool{}
 	valueWhenAbsent = map[string]any{}
 	hostDerived = map[string]string{}
+	decodedNotLookedUp = map[string]string{}
 }
 
 // EnvPrefix is the environment namespace for every derived key.

@@ -76,6 +76,10 @@ func installResolved(cmd *cobra.Command, typed map[string]string, log *slog.Logg
 		return
 	}
 	log.Info("resolved configuration installed", "mode", mode, "summary", report.Summary())
+
+	// A second delivery, for the sections nothing looks up. Installing reaches a reader that asks the
+	// options for a key; config.toml was read into a struct before any of this ran.
+	deliverDecodedSections(ctx, resolved, log)
 	reportWhichChannelWon(resolved, log)
 }
 

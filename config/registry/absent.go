@@ -179,3 +179,63 @@ func HostDerivedKeys() []string {
 	sort.Strings(out)
 	return out
 }
+
+// decodedNotLookedUp holds the sections whose values reach their reader by a decode, and why.
+var decodedNotLookedUp = map[string]string{}
+
+// DeclareDecodedNotLookedUp records that a section's values reach their reader by being decoded into a
+// struct, rather than by a lookup in the application options.
+//
+// Almost every section is read the other way: a reader asks the options for a key by name, so installing
+// the resolved value into the source is the whole delivery. The sections this names are read once, by
+// decoding a configuration file into a struct before any of that happens, and a value installed into the
+// source afterwards reaches nothing. They need delivering a second way.
+//
+// The declaration is what the boot filters on, and it is also why a read census cannot see these keys:
+// the census records lookups, and these have none to record.
+func DeclareDecodedNotLookedUp(section, why string) {
+	mu.Lock()
+	defer mu.Unlock()
+	if why == "" {
+		defects = append(defects, Defect{Section: section, Err: fmt.Errorf(
+			"declared as decoded rather than looked up with no reason; the reason names the struct its " +
+				"values are decoded into, which is what a reader has to check the claim against")})
+		return
+	}
+	decodedNotLookedUp[section] = why
+}
+
+// DecodedNotLookedUp reports whether a section's values reach their reader by a decode.
+func DecodedNotLookedUp(section string) bool {
+	mu.RLock()
+	defer mu.RUnlock()
+	_, ok := decodedNotLookedUp[section]
+	return ok
+}
+
+// KeysDecodedNotLookedUp returns the resolved values of every such section, keyed by dotted key.
+//
+// Built from the resolution rather than from the registry alone, so the values carry whatever layer
+// answered for them and not the baseline. A section with no keys contributes nothing rather than an
+// empty entry, because an empty decode is indistinguishable from one that did not run.
+func KeysDecodedNotLookedUp(resolved Resolved) map[string]any {
+	mu.RLock()
+	owning := map[string]bool{}
+	for name := range decodedNotLookedUp {
+		owning[name] = true
+	}
+	mu.RUnlock()
+
+	out := map[string]any{}
+	for _, section := range Sections() {
+		if !owning[section.Name] {
+			continue
+		}
+		for _, key := range section.Keys {
+			if resolution, found := resolved.Keys[key]; found {
+				out[key] = resolution.Value
+			}
+		}
+	}
+	return out
+}
