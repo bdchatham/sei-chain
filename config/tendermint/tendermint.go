@@ -26,7 +26,7 @@ const (
 	P2PSectionName             = "p2p"
 	ConsensusSectionName       = "consensus"
 	TxIndexSectionName         = "tx-index"
-	NodeSectionName            = "node"
+	TendermintSectionName      = "tendermint"
 )
 
 // optionalWithNoDefault is why a key whose upstream default is a nil pointer is not declared.
@@ -92,12 +92,16 @@ func init() {
 
 	// The keys at the top of config.toml, which carry no section of their own. The name is for lookups
 	// and reports and is not part of any key, the same way base names app.toml's root keys.
-	registry.RegisterRootKeysExcluding(NodeSectionName, &nodeSchema{}, nodeBaseline,
-		nodeNotConfiguration())
+	//
+	// Named for the file rather than for the node, because node is itself one of the keys client.toml
+	// carries at its own root. A section cannot share a name with a root key: a file holding both
+	// node = "..." and a [node] table is not valid TOML, so one of the two would be unreachable.
+	registry.RegisterRootKeysExcluding(TendermintSectionName, &tendermintSchema{}, tendermintBaseline,
+		tendermintNotConfiguration())
 
 	// The moniker's default is the machine's host name, so two nodes of the same release resolve
 	// different ones and a record of the key space cannot hold the value.
-	registry.DeclareHostDerived(NodeSectionName, "moniker", "the host name of the machine that asked")
+	registry.DeclareHostDerived(TendermintSectionName, "moniker", "the host name of the machine that asked")
 
 	registry.RegisterSectionExcluding(ConsensusSectionName, &tmcfg.ConsensusConfig{},
 		consensusBaseline, consensusNotConfiguration())
@@ -112,7 +116,7 @@ func init() {
 		P2PSectionName:             "config.P2PConfig",
 		ConsensusSectionName:       "config.ConsensusConfig",
 		TxIndexSectionName:         "config.TxIndexConfig",
-		NodeSectionName:            "config.BaseConfig",
+		TendermintSectionName:      "config.BaseConfig",
 	} {
 		registry.DeclareDecodedNotLookedUp(section,
 			"decoded into tendermint "+into+" by the boot's own handler, which reads config.toml once "+
@@ -233,28 +237,28 @@ func consensusNotConfiguration() map[string]string {
 	return out
 }
 
-// nodeBaseline is what the node-wide config.toml keys resolve to for a node that has written nothing.
+// tendermintBaseline is what the node-wide config.toml keys resolve to for a node that has written nothing.
 //
 // The upstream defaults, and the same for every mode. The node mode is among these keys and is not
 // varied by it: sei.toml records the mode separately and a diagnostic compares the two, so resolving one
 // from the other would make that comparison compare a thing with itself.
-func nodeBaseline(registry.Mode) any {
+func tendermintBaseline(registry.Mode) any {
 	whole := tmcfg.DefaultConfig()
-	return nodeSchema{
+	return tendermintSchema{
 		BaseConfig:              whole.BaseConfig,
 		AutobahnConfigFile:      whole.AutobahnConfigFile,
 		HashVaultDisabledUnsafe: whole.HashVaultDisabledUnsafe,
 	}
 }
 
-// nodeSchema is every key at the top of config.toml, which two structs supply between them.
+// tendermintSchema is every key at the top of config.toml, which two structs supply between them.
 //
 // tmcfg.BaseConfig holds most of them and tmcfg.Config holds two of its own, at the same level, because
 // Config squashes BaseConfig into itself. Registering BaseConfig alone therefore leaves those two
 // undeclared, and squashing it here is what puts the whole top of the file under one section. The decode
 // reads them at the same level for the same reason, so the spelling this produces is the spelling that
 // arrives.
-type nodeSchema struct {
+type tendermintSchema struct {
 	tmcfg.BaseConfig `mapstructure:",squash"`
 
 	// The routing config a node reads when it runs the Autobahn executor, read by app.New.
@@ -263,14 +267,14 @@ type nodeSchema struct {
 	HashVaultDisabledUnsafe bool `mapstructure:"hash-vault-disabled-unsafe"`
 }
 
-// nodeNotConfiguration names the fields of the root config an operator is not given.
+// tendermintNotConfiguration names the fields of the root config an operator is not given.
 //
 // log-level is the one worth reading twice. It is live and an operator writes it, but the boot reads it
 // off the struct and hands it to the logger before the resolved values are delivered, so a value
 // delivered afterwards would move the field and not the logging. A key that appears to take and does not
 // is the defect this whole key space exists to remove, so it stays on the legacy path until the delivery
 // can re-apply it.
-func nodeNotConfiguration() map[string]string {
+func tendermintNotConfiguration() map[string]string {
 	const deprecated = "deprecated upstream, where the flag that carries it is marked deprecated and the " +
 		"comment says it no longer has any effect"
 

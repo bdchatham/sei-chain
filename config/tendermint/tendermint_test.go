@@ -31,7 +31,7 @@ func TestNoSectionDeclaresTheRootDirectory(t *testing.T) {
 // that never reach the node, which is the defect this whole workstream exists to remove.
 func TestTheDeclaredTendermintSectionsAreAllDecodedNotLookedUp(t *testing.T) {
 	sections := []string{"instrumentation", "self-remediation", "priv-validator", "statesync",
-		"mempool", "rpc", "p2p", "consensus", "tx-index", "node"}
+		"mempool", "rpc", "p2p", "consensus", "tx-index", "tendermint"}
 	for _, name := range sections {
 		if _, ok := registry.Lookup(name); !ok {
 			t.Errorf("%s is not registered", name)
@@ -48,7 +48,7 @@ func TestRegisteringTheTendermintSectionsProducedNoDefect(t *testing.T) {
 	for _, defect := range registry.Defects() {
 		switch defect.Section {
 		case "instrumentation", "self-remediation", "priv-validator", "statesync", "mempool", "rpc",
-			"p2p", "consensus", "tx-index", "node":
+			"p2p", "consensus", "tx-index", "tendermint":
 			t.Errorf("registering %s was refused: %v\n\nThe section is absent from the registry, so "+
 				"every key it declares silently reads from the legacy path instead",
 				defect.Section, defect.Err)
