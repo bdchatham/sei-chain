@@ -49,7 +49,7 @@ var Names = []string{
 	"instrumentation",
 	"light_invariance",
 	"mempool",
-	"node",
+	"tendermint",
 	"p2p",
 	"priv-validator",
 	"receipt-store",
