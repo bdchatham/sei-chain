@@ -11,6 +11,7 @@ import (
 	"go.opentelemetry.io/otel/sdk/trace"
 
 	"github.com/sei-protocol/sei-chain/cmd/seid/cmd/configmanager"
+	"github.com/sei-protocol/sei-chain/config/registry"
 	"github.com/sei-protocol/sei-chain/sei-cosmos/server"
 	tmcfg "github.com/sei-protocol/sei-chain/sei-tendermint/config"
 	"github.com/sei-protocol/sei-chain/testutil/configtest"
@@ -256,4 +257,49 @@ func TestADeliveredLogLevelReachesTheLogger(t *testing.T) {
 			"where a log level takes effect, so an operator who set it would see no change in the logs",
 			got)
 	}
+}
+
+// TestEachChannelWinsForADecodedKeyToo is the precedence property, asserted where it lands.
+//
+// The channel tests elsewhere read ctx.Viper, which is the whole delivery for a section a reader looks
+// up. It is not the delivery for a section read by a decode: the value has to reach the struct, and a
+// key can be correct in the source and absent from the struct. So this drives the same three channels
+// and reads the setting the node runs from.
+func TestEachChannelWinsForADecodedKeyToo(t *testing.T) {
+	const key = "rpc.laddr"
+	const inFile = "tcp://0.0.0.0:11111"
+	const inEnv = "tcp://0.0.0.0:22222"
+	const onCommandLine = "tcp://0.0.0.0:33333"
+
+	body := "schema_version = 2\nnode_mode = \"validator\"\n\n[rpc]\nladdr = \"" + inFile + "\"\n"
+
+	t.Run("the file beats the baseline", func(t *testing.T) {
+		configtest.Isolate(t)
+		ctx := bootWithSeiToml(t, body)
+		if got := ctx.Config.RPC.ListenAddress; got != inFile {
+			t.Errorf("the node listens on %q with %q in sei.toml. The value resolved and never reached "+
+				"the struct the node reads", got, inFile)
+		}
+	})
+
+	t.Run("the environment beats the file", func(t *testing.T) {
+		configtest.Isolate(t)
+		t.Setenv(registry.EnvName(key), inEnv)
+		ctx := bootWithSeiToml(t, body)
+		if got := ctx.Config.RPC.ListenAddress; got != inEnv {
+			t.Errorf("the node listens on %q with %q in the environment and %q in the file", got,
+				inEnv, inFile)
+		}
+	})
+
+	t.Run("a typed flag beats both", func(t *testing.T) {
+		configtest.Isolate(t)
+		t.Setenv(registry.EnvName(key), inEnv)
+		ctx := bootWithSeiTomlAndFlags(t, body, map[string]string{key: onCommandLine})
+		if got := ctx.Config.RPC.ListenAddress; got != onCommandLine {
+			t.Errorf("the node listens on %q with %q typed on the command line, %q in the environment "+
+				"and %q in the file. An operator's flag is the one channel that must never be buried",
+				got, onCommandLine, inEnv, inFile)
+		}
+	})
 }
