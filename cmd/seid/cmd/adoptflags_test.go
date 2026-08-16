@@ -64,6 +64,7 @@ func TestEveryBoundFlagsDefaultReadsAsItsKeysType(t *testing.T) {
 // without anything in this repository being edited.
 func TestTheFlagLayerAnswersForTheKeysItIsThereFor(t *testing.T) {
 	want := []string{
+		"chain-id",
 		"compaction-interval",
 		"concurrency-workers",
 		"consensus.create-empty-blocks",

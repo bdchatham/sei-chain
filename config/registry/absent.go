@@ -255,3 +255,114 @@ func KeysDecodedNotLookedUp(resolved Resolved) map[string]any {
 	}
 	return out
 }
+
+// legacyEnvNames holds the environment variables a key answered to before it was declared, and why.
+var legacyEnvNames = map[string]envAlias{}
+
+// envAlias is one variable a key still answers to, and the reason it does.
+type envAlias struct {
+	name string
+	why  string
+}
+
+// DeclareLegacyEnvName records an environment variable a key answered to before this registry named it.
+//
+// Every declared key has exactly one canonical variable, derived from the key so a section cannot carry a
+// spelling its variable does not match. A key that reached its reader through some other variable before
+// it was declared has an operator somewhere with that variable set, and declaring the key would silence
+// them without a word.
+//
+// The canonical name wins where both are set, because one of them is the name this binary documents. The
+// legacy one is reported rather than applied silently, which is what makes it possible to know whether
+// anyone still depends on it.
+//
+// This is the one declaration whose purpose is to stop being true. Every other one states something
+// permanent about a reader; this one states a compatibility the key space has not finished absorbing, and
+// left alone it becomes a second permanent spelling, which is the drift the registry exists to prevent.
+// There is no removal date, so the reason says what it is for and doctor's report is what says whether it
+// is still earning its place.
+func DeclareLegacyEnvName(section, key, name, why string) {
+	mu.Lock()
+	defer mu.Unlock()
+	switch {
+	case name == "":
+		defects = append(defects, Defect{Section: section, Err: fmt.Errorf(
+			"declared an empty legacy environment variable for %q", key)})
+	case why == "":
+		defects = append(defects, Defect{Section: section, Err: fmt.Errorf(
+			"declared the legacy variable %s for %q with no reason; without one nothing says what it is "+
+				"for, and a compatibility nobody can explain is one nobody can remove", name, key)})
+	case name == EnvName(key):
+		defects = append(defects, Defect{Section: section, Err: fmt.Errorf(
+			"declared %s as a legacy variable for %q and that is already its canonical name", name, key)})
+	default:
+		legacyEnvNames[key] = envAlias{name: name, why: why}
+	}
+}
+
+// LegacyEnvName returns the variable a key still answers to, and whether it has one.
+func LegacyEnvName(key string) (string, bool) {
+	mu.RLock()
+	defer mu.RUnlock()
+	alias, ok := legacyEnvNames[key]
+	return alias.name, ok
+}
+
+// LegacyEnvNameKeys returns the keys carrying such a variable, sorted.
+func LegacyEnvNameKeys() []string {
+	mu.RLock()
+	defer mu.RUnlock()
+	out := make([]string, 0, len(legacyEnvNames))
+	for key := range legacyEnvNames {
+		out = append(out, key)
+	}
+	sort.Strings(out)
+	return out
+}
+
+// conflictingFlagRefused holds the keys where a typed flag may not disagree with the file, and why.
+var conflictingFlagRefused = map[string]string{}
+
+// RefuseConflictingFlag records that a typed flag disagreeing with the file is a mistake for this key.
+//
+// A flag beating a file is ordinarily the point: an operator typed it, so it wins. For a few settings the
+// disagreement is evidence of a mistake rather than an intent, because the two values answer a question
+// with one right answer and the operator cannot have meant both. The chain a node joins is that: a flag
+// naming one chain and a file naming another is a node about to run somewhere nobody chose.
+//
+// Refused rather than reported. This is the one thing the resolution stops a boot for, and the reason it
+// may is that the path it replaces stops for the same input: the upstream start command panics when a
+// typed chain-id disagrees with the client configuration. Declaring the key moved that comparison out of
+// reach, because the flag now feeds the value the check reads, so the check can never see a difference.
+// This puts it back where both sides are still visible.
+func RefuseConflictingFlag(section, key, why string) {
+	mu.Lock()
+	defer mu.Unlock()
+	if why == "" {
+		defects = append(defects, Defect{Section: section, Err: fmt.Errorf(
+			"refused a conflicting flag for %q with no reason; a boot this stops needs to say what "+
+				"question the two values disagree about", key)})
+		return
+	}
+	conflictingFlagRefused[key] = why
+}
+
+// ConflictingFlagRefused returns the reason a key refuses a disagreeing flag, and whether it does.
+func ConflictingFlagRefused(key string) (string, bool) {
+	mu.RLock()
+	defer mu.RUnlock()
+	why, ok := conflictingFlagRefused[key]
+	return why, ok
+}
+
+// ConflictingFlagKeys returns those keys, sorted.
+func ConflictingFlagKeys() []string {
+	mu.RLock()
+	defer mu.RUnlock()
+	out := make([]string, 0, len(conflictingFlagRefused))
+	for key := range conflictingFlagRefused {
+		out = append(out, key)
+	}
+	sort.Strings(out)
+	return out
+}

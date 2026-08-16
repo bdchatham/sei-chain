@@ -11,9 +11,14 @@ import (
 
 // legacyFiles are the configuration files a node keeps today, in the order they are merged.
 //
-// app.toml then config.toml, matching the order the boot reads them, so a key both files carry
-// resolves here the way it resolves on the running node.
-var legacyFiles = []string{"app.toml", "config.toml"}
+// app.toml then config.toml, matching the order the boot reads them, so a key both files carry resolves
+// here the way it resolves on the running node. client.toml last, and it can go anywhere, because no
+// name it holds appears in either of the others.
+//
+// All three, because a migration that carried two of them would write a file that loses the third. Every
+// machine running any seid command has a client.toml, since its reader writes one when it finds none, so
+// leaving it out would drop settings from every node rather than from an unusual one.
+var legacyFiles = []string{"app.toml", "config.toml", "client.toml"}
 
 // LegacySource reads a node's existing configuration files.
 //

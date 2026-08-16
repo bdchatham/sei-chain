@@ -30,6 +30,12 @@ func defaultClientConfig() *ClientConfig {
 	return &ClientConfig{chainID, keyringBackend, output, node, broadcastMode}
 }
 
+// DefaultClientConfig returns the values this reader falls back to when the file supplies none.
+//
+// Exported so the configuration registry can resolve this section's baseline out of the reader's own
+// default rather than restating it, which is what stops the two drifting apart.
+func DefaultClientConfig() *ClientConfig { return defaultClientConfig() }
+
 func (c *ClientConfig) SetChainID(chainID string) {
 	c.ChainID = chainID
 }

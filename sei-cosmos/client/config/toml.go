@@ -83,7 +83,10 @@ func GetClientConfig(configPath string, v *viper.Viper) (*ClientConfig, error) {
 	v.SetConfigName("client")
 	v.SetConfigType("toml")
 
-	if err := v.ReadInConfig(); err != nil {
+	// Merged rather than read, because the viper this is given may already hold a node's other
+	// configuration. ReadInConfig replaces a viper's config layer outright, so reading client.toml into
+	// the same instance that holds config.toml and app.toml would discard both.
+	if err := v.MergeInConfig(); err != nil {
 		return nil, err
 	}
 

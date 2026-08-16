@@ -18,6 +18,7 @@ import (
 
 	_ "github.com/sei-protocol/sei-chain/admin"
 	_ "github.com/sei-protocol/sei-chain/app"
+	_ "github.com/sei-protocol/sei-chain/config/client"
 	_ "github.com/sei-protocol/sei-chain/config/cosmosbase"
 	_ "github.com/sei-protocol/sei-chain/config/tendermint"
 	_ "github.com/sei-protocol/sei-chain/evmrpc/config"
@@ -36,6 +37,7 @@ import (
 var Names = []string{
 	"admin_server",
 	"api",
+	"client",
 	"consensus",
 	"base",
 	"eth_blocktest",

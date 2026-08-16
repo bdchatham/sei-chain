@@ -175,44 +175,63 @@ func TestStartPreRunRebindsFlagsIntoTheApplyViper(t *testing.T) {
 	}
 }
 
-// TestStartChainIDMismatchPanics pins the comparison at the head of RunE.
+// TestATypedChainIDDisagreeingWithTheFileStopsTheBoot is the guard that keeps a node off a chain nobody
+// chose, checked where the two values are still separate.
 //
-// start treats client.toml as the authority and --chain-id as an assertion about it.
-// Disagreement is a panic, not an error, and the message names ~/.sei/config/client.toml
-// whatever --home says — so an operator with a non-default home is pointed at a file
-// the node is not reading.
-//
-// The panic fires before any app is constructed, which is the only reason this is
-// reachable at all.
-func TestStartChainIDMismatchPanics(t *testing.T) {
+// The comparison used to sit in the start command, against the chain-id it had resolved. Once the
+// configuration files and the command line share one source that value is the flag, so the check could
+// never see a difference. It runs in the root command now, before either manager, against what the
+// operator's file says rather than against what resolved.
+func TestATypedChainIDDisagreeingWithTheFileStopsTheBoot(t *testing.T) {
 	configtest.Isolate(t)
 	home := configtest.NewHome(t)
 	home.WriteClientTOML(t, []byte("chain-id = \"from-client-toml\"\nkeyring-backend = \"test\"\n"))
 	home.WriteAppTOML(t, []byte(fixtureAppTOML))
 
-	cmd, _, stop := newStartCmd(t, home, map[string]string{
+	root, _ := NewRootCmd()
+	root.SetOut(io.Discard)
+	root.SetErr(io.Discard)
+	cmd, _, err := root.Find([]string{"start"})
+	if err != nil {
+		t.Fatalf("find start: %v", err)
+	}
+	if err := cmd.Flags().Set("home", home.Root); err != nil {
+		t.Fatalf("set --home: %v", err)
+	}
+	setFlags(t, cmd, map[string]string{
 		server.FlagPruning: "nothing",
 		server.FlagChainID: "a-different-chain",
 	})
+	base, cancel := context.WithCancel(context.Background())
+	t.Cleanup(cancel)
+	ctx := context.WithValue(base, server.ServerContextKey, &server.Context{})
+	ctx = context.WithValue(ctx, client.ClientContextKey, &client.Context{})
+	cmd.SetContext(ctx)
 
-	r, runErr := runEBounded(t, cmd, stop)
-	if r == nil {
-		t.Fatalf("a --chain-id that disagrees with client.toml must panic before the app is "+
-			"built; RunE returned %v instead", runErr)
+	err = root.PersistentPreRunE(cmd, nil)
+	if err == nil {
+		t.Fatal("a --chain-id that disagrees with the node's own file started the boot. That node joins " +
+			"whichever network the flag names, which is the mistake this refuses")
 	}
-	msg, ok := r.(string)
-	if !ok {
-		t.Fatalf("expected a string panic, got %T: %v", r, r)
+	if !strings.Contains(err.Error(), "chain-id") || !strings.Contains(err.Error(), "client.toml") {
+		t.Errorf("the refusal is %q. It has to name the key and the file the operator edits, or they "+
+			"cannot tell which of the two values to change", err)
 	}
-	if !strings.Contains(msg, "chain-id mismatch") {
-		t.Fatalf("the panic must name the mismatch, got %q", msg)
-	}
-	if !strings.Contains(msg, "from-client-toml") || !strings.Contains(msg, "a-different-chain") {
-		t.Fatalf("the panic must quote both values so an operator can see which is which, got %q", msg)
-	}
-	if !strings.Contains(msg, "~/.sei/config/client.toml") {
-		t.Fatalf("the message no longer hardcodes the default home (%q). Deriving it from --home "+
-			"is a fix, and this row is where that gets recorded rather than skipped past", msg)
+}
+
+// TestATypedChainIDMatchingTheFileStartsTheBoot keeps the refusal from stopping an agreement.
+func TestATypedChainIDMatchingTheFileStartsTheBoot(t *testing.T) {
+	configtest.Isolate(t)
+	home := configtest.NewHome(t)
+	home.WriteClientTOML(t, []byte("chain-id = \"agreed\"\nkeyring-backend = \"test\"\n"))
+	home.WriteAppTOML(t, []byte(fixtureAppTOML))
+
+	cmd, _, _ := newStartCmd(t, home, map[string]string{
+		server.FlagPruning: "nothing",
+		server.FlagChainID: "agreed",
+	})
+	if got := client.GetClientContextFromCmd(cmd).ChainID; got != "agreed" {
+		t.Errorf("the chain is %q where the flag and the file both say agreed", got)
 	}
 }
 

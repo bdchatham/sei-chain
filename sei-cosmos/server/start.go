@@ -152,9 +152,11 @@ is performed. Note, when enabled, gRPC will also be automatically enabled.
 			chainID := clientCtx.ChainID
 			flagChainID, _ := cmd.Flags().GetString(FlagChainID)
 			if flagChainID != "" {
-				if flagChainID != chainID {
-					panic(fmt.Sprintf("chain-id mismatch: %s vs %s. The chain-id passed in is different from the value in ~/.sei/config/client.toml \n", flagChainID, chainID))
-				}
+				// The comparison this used to make lives in the root command now, before either
+				// configuration manager runs. It compared the flag against the value it had resolved,
+				// and the configuration files and the command line share one source, so that value is
+				// the flag and the two could never differ. The check needs the operator's file and the
+				// operator's flag while they are still separate, which is only true before the merge.
 				chainID = flagChainID
 			}
 

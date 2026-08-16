@@ -263,6 +263,14 @@ func EnvLayer(lookup func(string) (string, bool)) Layer {
 		}
 		if v, ok := lookup(EnvName(key)); ok && v != "" {
 			out.Values[key] = v
+			continue
+		}
+		// The canonical name answered for nothing, so a variable the key carried before it was declared
+		// still does. Checked second on purpose: where both are set, the name this binary documents wins.
+		if legacy, has := LegacyEnvName(key); has {
+			if v, ok := lookup(legacy); ok && v != "" {
+				out.Values[key] = v
+			}
 		}
 	}
 	return out

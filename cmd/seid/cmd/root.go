@@ -86,18 +86,51 @@ func NewRootCmd() (*cobra.Command, params.EncodingConfig) {
 			if err != nil {
 				return err
 			}
-			initClientCtx, err = config.ReadFromClientConfig(initClientCtx)
-			if err != nil {
-				return err
-			}
-			if err := client.SetCmdClientContextHandler(initClientCtx, cmd); err != nil {
-				return err
+			// The client configuration is read after the manager has run, because the manager is what
+			// resolves it. Its five settings are declared like any other section, so their values come
+			// from sei.toml, the environment and the command line before client.toml is consulted, and
+			// they reach the reader by being installed into the source it reads. Reading them here, the
+			// way this used to, resolved them out of a second viper before the manager existed.
+			//
+			// Nothing between here and there reads the client context. The manager does not: its home
+			// directory comes from the command's own flags, and it holds no reference to a client
+			// context anywhere.
+			readClientConfig := func() error {
+				ctx := initClientCtx
+				// One viper, where there were two. The manager has already put this section's resolved
+				// values into the source it builds, so reading client.toml into that same source is what
+				// lets them outrank the file: viper ranks an installed value above a config one. Reading
+				// into a viper of its own, the way this used to, left the resolved values somewhere the
+				// reader never looked.
+				//
+				// The reader merges rather than replaces for the same reason, so the node's other two
+				// files survive the read.
+				if server := server.GetServerContextFromCmd(cmd); server != nil && server.Viper != nil {
+					ctx.Viper = server.Viper
+				}
+				resolved, err := config.ReadFromClientConfig(ctx)
+				if err != nil {
+					return err
+				}
+				return client.SetCmdClientContextHandler(resolved, cmd)
 			}
 
 			// Skip creating config.toml/app.toml when running "init"; init creates them itself.
-			// Otherwise the PreRun would create them in the init home, and init would then error
+			// Otherwise the PreRun would create them in the init home, and init would then error.
+			//
+			// init reads the client context itself and there is no manager on this path, since the files
+			// a manager resolves are the ones init is about to write. So the client configuration is read
+			// here on its own, out of the client context's own viper.
 			if strings.HasPrefix(cmd.Use, "init") {
-				return nil
+				return readClientConfig()
+			}
+
+			// Before either manager, and outside both. A flag the operator typed that disagrees with a
+			// file they wrote is a mistake for a few keys rather than an override, and the two are only
+			// still distinguishable here: once the files and the flags share one source, the flag is the
+			// value, so nothing downstream can see a difference.
+			if err := configmanager.RefuseConflictingFlags(cmd); err != nil {
+				return err
 			}
 
 			customAppTemplate, customAppConfig := initAppConfig()
@@ -111,6 +144,9 @@ func NewRootCmd() (*cobra.Command, params.EncodingConfig) {
 				return err
 			}
 			if err := mgr.Apply(cmd, customAppTemplate, customAppConfig); err != nil {
+				return err
+			}
+			if err := readClientConfig(); err != nil {
 				return err
 			}
 			// The sweep runs here rather than inside either Apply, and that placement is the whole

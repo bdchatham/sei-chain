@@ -144,6 +144,11 @@ func TestEveryDeclaredKeyAFlagCanDeliverTakesTheFlag(t *testing.T) {
 	}
 
 	for _, key := range delivered {
+		// A key that refuses a disagreeing flag cannot be driven this way: the fixture writes one value
+		// in the file and types another, which is the exact input that key exists to stop.
+		if _, refuses := registry.ConflictingFlagRefused(key); refuses {
+			continue
+		}
 		t.Run(key, func(t *testing.T) {
 			configtest.Isolate(t)
 			// Three values this flag's own type accepts, all different, so the winner is the channel and
