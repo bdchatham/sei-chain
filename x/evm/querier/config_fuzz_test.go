@@ -41,59 +41,31 @@ func FuzzReadConfig(f *testing.F) {
 	seeds.Add(fuzzing.KindNil, "", int64(0), false)
 	seeds.Add(fuzzing.KindFloat64, "", int64(7), false)
 
-	configtest.CheckEveryRowHasADiscriminatingSeed(f, "evm_query", readEVMQuery, evmQueryKeys, seeds)
+	configtest.FuzzSection(f, "evm_query", evmQuerySection(), seeds)
 
 	f.Fuzz(func(t *testing.T, kind uint8, s string, n int64, b bool) {
 		configtest.CheckRow(t, "evm_query", readEVMQuery, evmQueryKeys[0], fuzzing.ConfigValue(kind, s, n, b))
 	})
 }
 
-// TestReadConfigAbsentKeysKeepDefaults pins the section baseline.
-func TestReadConfigAbsentKeysKeepDefaults(t *testing.T) {
-	configtest.CheckAbsent(t, "evm_query", readEVMQuery, querier.DefaultConfig)
-}
-
-// TestDefaultsMatchTheRecordedValues pins the evm_query defaults themselves.
+// TestEVMQuerySection is this section's whole coverage, in one call.
 //
-// The absent-keys row above proves the reader returns the declared defaults; it cannot prove
-// which values those are, because both sides of that comparison come from this package. This
-// compares them against testdata/evm_query.golden, an independent recording, so a default that
-// moves shows the new value in a diff instead of passing silently.
-func TestDefaultsMatchTheRecordedValues(t *testing.T) {
-	configtest.CheckDefaults(t, "evm_query", querier.DefaultConfig)
+// One call rather than six. Six call sites are six things a later edit can remove one of while
+// every remaining check still passes, which is why a record of the wiring had to exist. What each
+// check asserts is named by its subtest.
+func TestEVMQuerySection(t *testing.T) {
+	configtest.CheckSection(t, "evm_query", evmQuerySection())
 }
 
-// TestKeyNamesMatchTheRecordedNames pins the key name itself, so that the protection does not
-// depend on this row being spelled as a literal today.
-func TestKeyNamesMatchTheRecordedNames(t *testing.T) {
-	configtest.CheckKeyNames(t, "evm_query", evmQueryKeys)
-}
-
-// TestManifestNamesEveryField enforces the claim evmQueryKeys makes about itself: that it names
-// every key the reader looks up. Left as prose the claim can drift, and it is the artifact a
-// replacement implementation reads as this section's contract.
-func TestManifestNamesEveryField(t *testing.T) {
-	configtest.CheckManifestCoversEveryField(t, "evm_query", querier.DefaultConfig, evmQueryKeys)
-}
-
-// TestWiringMatchesTheRecord pins which checks each of this package's sections is wired to.
+// evmQuerySection states this section for both the test and the fuzz target.
 //
-// Every other check here reports a change to what it asserts. None reports a check being removed, so
-// this records the wiring and fails when it thins out.
-func TestWiringMatchesTheRecord(t *testing.T) {
-	configtest.CheckWiring(t)
-}
+// Shared so the two cannot describe the same section differently, which is how a fuzz target ends
+// up driving a manifest the tests never checked.
+func evmQuerySection() configtest.Section {
+	return configtest.Section{
+		Read:     readEVMQuery,
+		Defaults: querier.DefaultConfig,
 
-// TestNoExperimentalKeyShadowsThisSection is this section's half of the experimental collision
-// check.
-//
-// It lives here because a KeySpec manifest is an unexported package-level var in a _test.go file,
-// so this is the only test binary that can see both this section's live keys and the experimental
-// registry. A test in cmd/seid/cmd cannot reference these vars at all.
-//
-// A declared experimental name is the path the key occupies after promotion, so a name equal to one
-// of these keys would put two declarations on one path. The check compares whole spellings only;
-// a semantic duplicate under a different name stays a review question.
-func TestNoExperimentalKeyShadowsThisSection(t *testing.T) {
-	configtest.CheckNoExperimentalKeyShadowsThisSection(t, "evm_query", evmQueryKeys)
+		Keys: evmQueryKeys,
+	}
 }

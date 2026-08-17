@@ -69,8 +69,3 @@ func TestTheFingerprintIsTheHashOfTheRecordedSurface(t *testing.T) {
 			got, hex.EncodeToString(want[:]))
 	}
 }
-
-// TestWiringMatchesTheRecord records which checks this package calls.
-func TestWiringMatchesTheRecord(t *testing.T) {
-	configtest.CheckWiring(t)
-}

@@ -141,7 +141,7 @@ func FuzzReadConfig(f *testing.F) {
 	seeds.AddRow(uint(0), fuzzing.KindString, "not-a-bool", int64(0), false)                 // must error, never resolve false
 	seeds.AddRow(uint(42), fuzzing.KindFloat64, "", int64(7), false)                         // float into a float key
 
-	configtest.CheckEveryRowHasADiscriminatingSeed(f, "evm", readEVM, evmKeys, seeds)
+	configtest.FuzzSection(f, "evm", evmSection(), seeds)
 
 	f.Fuzz(func(t *testing.T, keyIdx uint, kind uint8, s string, n int64, b bool) {
 		spec := configtest.Pick(evmKeys, keyIdx)
@@ -353,78 +353,43 @@ func FuzzMaxOpenConnections(f *testing.F) {
 	})
 }
 
-// TestReadConfigAbsentKeysKeepDefaults pins the section baseline: an app.toml
-// with no [evm] section resolves to DefaultConfig exactly, including the two
-// machine-dependent defaults and the normalized tracer lists.
-func TestReadConfigAbsentKeysKeepDefaults(t *testing.T) {
-	configtest.CheckAbsent(t, "evm", readEVM, config.DefaultConfig)
+// TestEVMSection is this section's whole coverage, in one call.
+//
+// One call rather than six. Six call sites are six things a later edit can remove one of while
+// every remaining check still passes, which is why a record of the wiring had to exist. What each
+// check asserts is named by its subtest.
+func TestEVMSection(t *testing.T) {
+	configtest.CheckSection(t, "evm", evmSection())
 }
 
-// TestDefaultsMatchTheRecordedValues pins the evm defaults themselves.
+// evmSection states this section for both the test and the fuzz target.
 //
-// The absent-keys row above proves the reader returns the declared defaults; it cannot prove
-// which values those are, because both sides of that comparison come from this package. This
-// compares them against testdata/evm.golden, an independent recording, so a default that
-// moves shows the new value in a diff instead of passing silently.
-func TestDefaultsMatchTheRecordedValues(t *testing.T) {
-	configtest.CheckDefaults(t, "evm", config.DefaultConfig,
-		configtest.DerivedDefault{
-			Path: "MaxConcurrentSimulationCalls", Want: runtime.NumCPU(),
-			Why: "runtime.NumCPU()",
+// Shared so the two cannot describe the same section differently, which is how a fuzz target ends
+// up driving a manifest the tests never checked.
+func evmSection() configtest.Section {
+	return configtest.Section{
+		Read:     readEVM,
+		Defaults: config.DefaultConfig,
+
+		Keys: evmKeys,
+
+		DerivedDefaults: []configtest.DerivedDefault{
+			{
+				Path: "MaxConcurrentSimulationCalls", Want: runtime.NumCPU(),
+				Why: "runtime.NumCPU()",
+			},
+			{
+				Path: "WorkerPoolSize", Want: min(config.MaxWorkerPoolSize, runtime.NumCPU()*2),
+				Why: "min(MaxWorkerPoolSize, runtime.NumCPU()*2)",
+			},
 		},
-		configtest.DerivedDefault{
-			Path: "WorkerPoolSize", Want: min(config.MaxWorkerPoolSize, runtime.NumCPU()*2),
-			Why: "min(MaxWorkerPoolSize, runtime.NumCPU()*2)",
+
+		CoveredElsewhere: []string{
+			// Driven by dedicated targets in this file rather than by a table row, because each
+			// needs a shape CheckRow does not express.
+			"TraceAllowedTracers", // FuzzTracerAllowlists
+			"TraceBakeTracers",    // FuzzTracerAllowlists
+			"MaxOpenConnections",  // FuzzMaxOpenConnections
 		},
-	)
-}
-
-// TestKeyNamesMatchTheRecordedNames pins all forty-nine key names themselves.
-//
-// The table's header states the decision to spell these keys as literals rather than through
-// the package's flag constants, precisely so that a rename in the reader leaves the row
-// behind and fails. That decision is a comment, and a comment does not survive a later
-// refactor that tidies the duplication away. The record does: it holds the resolved string, so
-// a row converted to reference a constant is checked against the same name, and editing that
-// constant then fails here.
-func TestKeyNamesMatchTheRecordedNames(t *testing.T) {
-	configtest.CheckKeyNames(t, "evm", evmKeys)
-}
-
-// TestManifestNamesEveryField enforces the claim evmKeys makes about itself.
-//
-// The table says it lists every key ReadConfig looks up, and that claim is what a replacement
-// implementation will read as the contract for this section. Asserting it in prose leaves it
-// able to drift: a key can be added to the reader and rendered into app.toml while the table
-// stays silent, and the table is the artifact being trusted.
-func TestManifestNamesEveryField(t *testing.T) {
-	configtest.CheckManifestCoversEveryField(t, "evm", config.DefaultConfig, evmKeys,
-		// Driven by dedicated targets in this file rather than by a table row, because each
-		// needs a shape CheckRow does not express.
-		"TraceAllowedTracers", // FuzzTracerAllowlists
-		"TraceBakeTracers",    // FuzzTracerAllowlists
-		"MaxOpenConnections",  // FuzzMaxOpenConnections
-	)
-}
-
-// TestWiringMatchesTheRecord pins which checks each of this package's sections is wired to.
-//
-// Every other check here reports a change to what it asserts. None reports a check being removed, so
-// this records the wiring and fails when it thins out.
-func TestWiringMatchesTheRecord(t *testing.T) {
-	configtest.CheckWiring(t)
-}
-
-// TestNoExperimentalKeyShadowsThisSection is this section's half of the experimental collision
-// check.
-//
-// It lives here because a KeySpec manifest is an unexported package-level var in a _test.go file,
-// so this is the only test binary that can see both this section's live keys and the experimental
-// registry. A test in cmd/seid/cmd cannot reference these vars at all.
-//
-// A declared experimental name is the path the key occupies after promotion, so a name equal to one
-// of these keys would put two declarations on one path. The check compares whole spellings only;
-// a semantic duplicate under a different name stays a review question.
-func TestNoExperimentalKeyShadowsThisSection(t *testing.T) {
-	configtest.CheckNoExperimentalKeyShadowsThisSection(t, "evm", evmKeys)
+	}
 }

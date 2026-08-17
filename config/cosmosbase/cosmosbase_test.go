@@ -83,17 +83,7 @@ func TestNoExperimentalKeyShadowsThisSectionAfterRegistration(t *testing.T) {
 	for _, key := range section.Keys {
 		specs = append(specs, configtest.KeySpec{Key: key})
 	}
-	// The section name stays a literal. The wiring record reads it from this call's second argument, so a
-	// constant would record every section in this package under one placeholder row.
 	configtest.CheckNoExperimentalKeyShadowsThisSection(t, "state-sync", specs)
-}
-
-// TestWiringMatchesTheRecord records which checks this package calls.
-//
-// A deleted check is the one edit the remaining checks cannot report, so the set of calls is held in a
-// file rather than in whoever last read this directory.
-func TestWiringMatchesTheRecord(t *testing.T) {
-	configtest.CheckWiring(t)
 }
 
 // TestTheBaseSectionDescribesTheReaderItStandsInFor holds the node-wide keys against GetConfig.
@@ -105,7 +95,6 @@ func TestWiringMatchesTheRecord(t *testing.T) {
 // a runtime path at all: it unmarshals into a struct to generate app.toml when the file is absent, so the
 // tags decide what a fresh file contains while the keys decide what a node reads.
 func TestTheBaseSectionDescribesTheReaderItStandsInFor(t *testing.T) {
-	// The section name stays a literal. The wiring record reads it from this call's second argument.
 	configtest.CheckSchemaMatchesTheReader(t, "base", configtest.SchemaCheck{
 		Read: readBaseConfig,
 		// Each probe differs from what an absent key casts to, which for every one of these is zero.
@@ -187,7 +176,6 @@ func TestPruningKeepEveryIsReadByThePruningOptions(t *testing.T) {
 
 // TestTheAPISchemaDescribesTheReaderItStandsInFor holds the served-interface keys against GetConfig.
 func TestTheAPISchemaDescribesTheReaderItStandsInFor(t *testing.T) {
-	// The section name stays a literal. The wiring record reads it from this call's second argument.
 	configtest.CheckSchemaMatchesTheReader(t, "api", configtest.SchemaCheck{
 		Read: func(opts configtest.AppOpts) (any, error) {
 			cfg, err := readServerConfig(opts)
@@ -276,8 +264,7 @@ func TestTheDerivedAPIAndGRPCKeysAreTheKeysTheReaderResolves(t *testing.T) {
 	}
 }
 
-// The section names as literals, for the count check above. Written out because the wiring record reads a
-// section name from a call's second argument, and these are not those calls.
+// The section names as literals, for the count check above.
 const (
 	APISectionNameForTest  = "api"
 	GRPCSectionNameForTest = "grpc"
@@ -288,7 +275,6 @@ const (
 // The label set is probed with a list of pairs, which is the only shape its reader takes. That is the same
 // fact that keeps it out of the environment layer.
 func TestTheTelemetrySchemaDescribesTheReaderItStandsInFor(t *testing.T) {
-	// The section name stays a literal. The wiring record reads it from this call's second argument.
 	configtest.CheckSchemaMatchesTheReader(t, "telemetry", configtest.SchemaCheck{
 		Read: func(opts configtest.AppOpts) (any, error) {
 			cfg, err := readServerConfig(opts)
@@ -381,7 +367,6 @@ func TestTheStateSyncZeroWhenAbsentDeclarationMatchesItsReader(t *testing.T) {
 
 // TestTheGRPCWebSchemaDescribesTheReaderItStandsInFor holds the proxy's keys against GetConfig.
 func TestTheGRPCWebSchemaDescribesTheReaderItStandsInFor(t *testing.T) {
-	// The section name stays a literal. The wiring record reads it from this call's second argument.
 	configtest.CheckSchemaMatchesTheReader(t, "grpc-web", configtest.SchemaCheck{
 		Read: func(opts configtest.AppOpts) (any, error) {
 			cfg, err := readServerConfig(opts)

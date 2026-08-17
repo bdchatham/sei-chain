@@ -38,9 +38,8 @@ var fleetNodes = []struct {
 
 // TestEveryKeyAFleetNodesFilesCarryIsAccountedFor records what adoption would read past.
 //
-// One call per fixture, each naming its record with a literal. A loop over fleetNodes would collapse the
-// three into one row of the wiring record, and deleting any of them would then leave that record
-// unchanged.
+// One call per fixture, because each writes its own record and the three records are what a reviewer
+// diffs separately.
 func TestEveryKeyAFleetNodesFilesCarryIsAccountedFor(t *testing.T) {
 	configtest.Isolate(t)
 

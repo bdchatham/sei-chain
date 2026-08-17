@@ -59,7 +59,6 @@ func TestEveryKeyANodesFilesCarryHasASectionThatOwnsIt(t *testing.T) {
 		t.Fatalf("read the rendered configuration: %v", err)
 	}
 
-	// The record name stays a literal. The wiring record reads it from this call's second argument.
 	configtest.CheckLegacyKeysAreDeclared(t, "legacy_keyspace", existing.AllKeys(), inertInTheRenderedFiles)
 }
 

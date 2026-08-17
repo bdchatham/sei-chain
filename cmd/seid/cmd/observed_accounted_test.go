@@ -108,8 +108,8 @@ func boundStartFlags(t *testing.T) map[string]bool {
 // Named by section rather than by key, because the proof is per section and it is a stronger one than this
 // census offers. Each of these sections has a check that writes a value under every key it declares and
 // confirms which setting changed, so a key added to one of them is covered there. That check demands a
-// probe for every declared key and fails without one, and the package's wiring record fails if the call is
-// deleted, so the exemption cannot outlive the thing that justifies it.
+// probe for every declared key and fails without one, so a key added to a section it exempts is covered
+// there rather than here.
 var readByTheServerConfigReader = map[string]string{
 	"base": "read by the upstream server configuration reader at start time, and by the application's " +
 		"creation for all but one key. TestTheBaseSectionDescribesTheReaderItStandsInFor writes a value " +

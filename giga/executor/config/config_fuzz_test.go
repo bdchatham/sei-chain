@@ -48,7 +48,7 @@ func FuzzReadConfig(f *testing.F) {
 	seeds.AddRow(uint(0), fuzzing.KindNil, "", int64(0), false)
 	seeds.AddRow(uint(1), fuzzing.KindMap, "nested", int64(0), false)
 
-	configtest.CheckEveryRowHasADiscriminatingSeed(f, "giga_executor", readGiga, gigaKeys, seeds)
+	configtest.FuzzSection(f, "giga_executor", gigaExecutorSection(), seeds)
 
 	f.Fuzz(func(t *testing.T, keyIdx uint, kind uint8, s string, n int64, b bool) {
 		spec := configtest.Pick(gigaKeys, keyIdx)
@@ -56,61 +56,24 @@ func FuzzReadConfig(f *testing.F) {
 	})
 }
 
-// TestReadConfigAbsentKeysKeepDefaults pins the section's baseline: an app.toml
-// with no [giga_executor] section at all resolves to the in-code defaults, not to
-// the zero value.
-func TestReadConfigAbsentKeysKeepDefaults(t *testing.T) {
-	configtest.CheckAbsent(t, "giga_executor", readGiga, config.DefaultConfig)
+// TestGigaExecutorSection is this section's whole coverage, in one call.
+//
+// One call rather than six. Six call sites are six things a later edit can remove one of while
+// every remaining check still passes, which is why a record of the wiring had to exist. What each
+// check asserts is named by its subtest.
+func TestGigaExecutorSection(t *testing.T) {
+	configtest.CheckSection(t, "giga_executor", gigaExecutorSection())
 }
 
-// TestDefaultsMatchTheRecordedValues pins the giga_executor defaults themselves.
+// gigaExecutorSection states this section for both the test and the fuzz target.
 //
-// The absent-keys row above proves the reader returns the declared defaults; it cannot prove
-// which values those are, because both sides of that comparison come from this package. This
-// compares them against testdata/giga_executor.golden, an independent recording, so a default that
-// moves shows the new value in a diff instead of passing silently.
-func TestDefaultsMatchTheRecordedValues(t *testing.T) {
-	configtest.CheckDefaults(t, "giga_executor", config.DefaultConfig)
-}
+// Shared so the two cannot describe the same section differently, which is how a fuzz target ends
+// up driving a manifest the tests never checked.
+func gigaExecutorSection() configtest.Section {
+	return configtest.Section{
+		Read:     readGiga,
+		Defaults: config.DefaultConfig,
 
-// TestKeyNamesMatchTheRecordedNames pins the two key names themselves.
-//
-// Both rows above reach their key through config.FlagEnabled and config.FlagOCCEnabled, the
-// same constants ReadConfig passes to opts.Get. Editing one of those values renames an
-// operator-facing app.toml key and moves the row with it, so every assertion in this file
-// keeps passing against a key no node carries. testdata/giga_executor.keys.golden is the
-// copy that does not move, and giga_executor.enabled is worth that: it also gates the
-// SkipLastResultsHashValidation atomic, so a node resolving it to its default because the
-// key it was configured under stopped being read changes consensus behavior.
-func TestKeyNamesMatchTheRecordedNames(t *testing.T) {
-	configtest.CheckKeyNames(t, "giga_executor", gigaKeys)
-}
-
-// TestManifestNamesEveryField enforces the claim gigaKeys makes about itself: that it names every
-// key the reader looks up. Left as prose the claim can drift, and it is the artifact a replacement
-// implementation reads as this section's contract.
-//
-// The exemption list is empty and has to stay reviewed rather than assumed: Config carries exactly
-// the two fields the manifest names, so a third one arriving without a row fails here.
-func TestManifestNamesEveryField(t *testing.T) {
-	configtest.CheckManifestCoversEveryField(t, "giga_executor", config.DefaultConfig, gigaKeys)
-}
-
-// TestWiringMatchesTheRecord pins which checks each of this package's sections is wired to.
-//
-// Every other check here reports a change to what it asserts. None reports a check being removed, so
-// this records the wiring and fails when it thins out.
-func TestWiringMatchesTheRecord(t *testing.T) {
-	configtest.CheckWiring(t)
-}
-
-// TestNoExperimentalKeyShadowsThisSection is this section's half of the experimental collision
-// check.
-//
-// It lives here because a KeySpec manifest is an unexported package-level var in a _test.go file,
-// so this is the only test binary that can see both this section's live keys and the experimental
-// registry. Its reach is exactly the declarations this binary links, which for a real key is this
-// package itself, because a key is declared in the package that reads it.
-func TestNoExperimentalKeyShadowsThisSection(t *testing.T) {
-	configtest.CheckNoExperimentalKeyShadowsThisSection(t, "giga_executor", gigaKeys)
+		Keys: gigaKeys,
+	}
 }

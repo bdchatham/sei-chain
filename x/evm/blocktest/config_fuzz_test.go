@@ -46,17 +46,12 @@ func FuzzReadConfig(f *testing.F) {
 	seeds.AddRow(uint(1), fuzzing.KindAnySlice, "", int64(0), false)
 	seeds.AddRow(uint(0), fuzzing.KindNil, "", int64(0), false)
 
-	configtest.CheckEveryRowHasADiscriminatingSeed(f, "eth_blocktest", readETHBlockTest, ethBlockTestKeys, seeds)
+	configtest.FuzzSection(f, "eth_blocktest", ethBlockTestSection(), seeds)
 
 	f.Fuzz(func(t *testing.T, keyIdx uint, kind uint8, s string, n int64, b bool) {
 		spec := configtest.Pick(ethBlockTestKeys, keyIdx)
 		configtest.CheckRow(t, "eth_blocktest", readETHBlockTest, spec, fuzzing.ConfigValue(kind, s, n, b))
 	})
-}
-
-// TestReadConfigAbsentKeysKeepDefaults pins the section baseline.
-func TestReadConfigAbsentKeysKeepDefaults(t *testing.T) {
-	configtest.CheckAbsent(t, "eth_blocktest", readETHBlockTest, blocktest.DefaultConfig)
 }
 
 // TestStructTagSpellingIsInert records that the mapstructure spelling on
@@ -79,51 +74,24 @@ func TestStructTagSpellingIsInert(t *testing.T) {
 	}
 }
 
-// TestDefaultsMatchTheRecordedValues pins the eth_blocktest defaults themselves.
+// TestETHBlockTestSection is this section's whole coverage, in one call.
 //
-// The absent-keys row above proves the reader returns the declared defaults; it cannot prove
-// which values those are, because both sides of that comparison come from this package. This
-// compares them against testdata/eth_blocktest.golden, an independent recording, so a default that
-// moves shows the new value in a diff instead of passing silently.
-func TestDefaultsMatchTheRecordedValues(t *testing.T) {
-	configtest.CheckDefaults(t, "eth_blocktest", blocktest.DefaultConfig)
+// One call rather than six. Six call sites are six things a later edit can remove one of while
+// every remaining check still passes, which is why a record of the wiring had to exist. What each
+// check asserts is named by its subtest.
+func TestETHBlockTestSection(t *testing.T) {
+	configtest.CheckSection(t, "eth_blocktest", ethBlockTestSection())
 }
 
-// TestKeyNamesMatchTheRecordedNames pins the two key names themselves.
+// ethBlockTestSection states this section for both the test and the fuzz target.
 //
-// The section already exists under two spellings — the reader's eth_blocktest and the
-// mapstructure tag's eth_block_test — and TestStructTagSpellingIsInert records which one
-// resolves. The record holds the same answer for the keys, so unifying the two cannot be done
-// by editing the reader's prefix without the change appearing as a diff.
-func TestKeyNamesMatchTheRecordedNames(t *testing.T) {
-	configtest.CheckKeyNames(t, "eth_blocktest", ethBlockTestKeys)
-}
+// Shared so the two cannot describe the same section differently, which is how a fuzz target ends
+// up driving a manifest the tests never checked.
+func ethBlockTestSection() configtest.Section {
+	return configtest.Section{
+		Read:     readETHBlockTest,
+		Defaults: blocktest.DefaultConfig,
 
-// TestManifestNamesEveryField enforces the claim ethBlockTestKeys makes about itself: that it names
-// every key the reader looks up. Left as prose the claim can drift, and it is the artifact a
-// replacement implementation reads as this section's contract.
-func TestManifestNamesEveryField(t *testing.T) {
-	configtest.CheckManifestCoversEveryField(t, "eth_blocktest", blocktest.DefaultConfig, ethBlockTestKeys)
-}
-
-// TestWiringMatchesTheRecord pins which checks each of this package's sections is wired to.
-//
-// Every other check here reports a change to what it asserts. None reports a check being removed, so
-// this records the wiring and fails when it thins out.
-func TestWiringMatchesTheRecord(t *testing.T) {
-	configtest.CheckWiring(t)
-}
-
-// TestNoExperimentalKeyShadowsThisSection is this section's half of the experimental collision
-// check.
-//
-// It lives here because a KeySpec manifest is an unexported package-level var in a _test.go file,
-// so this is the only test binary that can see both this section's live keys and the experimental
-// registry. A test in cmd/seid/cmd cannot reference these vars at all.
-//
-// A declared experimental name is the path the key occupies after promotion, so a name equal to one
-// of these keys would put two declarations on one path. The check compares whole spellings only;
-// a semantic duplicate under a different name stays a review question.
-func TestNoExperimentalKeyShadowsThisSection(t *testing.T) {
-	configtest.CheckNoExperimentalKeyShadowsThisSection(t, "eth_blocktest", ethBlockTestKeys)
+		Keys: ethBlockTestKeys,
+	}
 }

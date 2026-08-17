@@ -60,7 +60,7 @@ func FuzzReadReceiptConfig(f *testing.F) {
 	seeds.AddRow(uint(1), fuzzing.KindNil, "", int64(0), false)
 	seeds.AddRow(uint(3), fuzzing.KindNil, "", int64(0), false)
 
-	configtest.CheckEveryRowHasADiscriminatingSeed(f, "receipt-store", readReceipt, receiptKeys, seeds)
+	configtest.FuzzSection(f, "receipt-store", receiptStoreSection(), seeds)
 
 	f.Fuzz(func(t *testing.T, keyIdx uint, kind uint8, s string, n int64, b bool) {
 		spec := configtest.Pick(receiptKeys, keyIdx)
@@ -169,70 +169,43 @@ func FuzzReceiptMisnamedBackendKey(f *testing.F) {
 	})
 }
 
-// TestReadReceiptConfigAbsentKeysKeepDefaults pins the section baseline.
-func TestReadReceiptConfigAbsentKeysKeepDefaults(t *testing.T) {
-	configtest.CheckAbsent(t, "receipt-store", readReceipt, DefaultReceiptStoreConfig())
+// TestReceiptStoreSection is this section's whole coverage, in one call.
+//
+// One call rather than six, because six call sites are six things a later edit can remove one of
+// while every remaining check still passes. What each check asserts is named by its subtest, and the
+// reasons that used to sit above each test now sit beside the field they qualify.
+func TestReceiptStoreSection(t *testing.T) {
+	configtest.CheckSection(t, "receipt-store", receiptStoreSection())
 }
 
-// TestDefaultsMatchTheRecordedValues pins the receipt-store defaults themselves.
+// receiptStoreSection states this section for both the test and the fuzz target.
 //
-// The absent-keys coverage in this file proves the reader returns the declared defaults; it
-// cannot prove which values those are, because both sides of that comparison come from the
-// same package. This compares them against testdata/receipt-store.golden, an independent
-// recording, so a default that moves shows the new value in a diff instead of passing
-// silently.
-func TestDefaultsMatchTheRecordedValues(t *testing.T) {
-	configtest.CheckDefaults(t, "receipt-store", DefaultReceiptStoreConfig())
-}
+// Shared so the two cannot describe the same section differently, which is how a fuzz target ends up
+// driving a manifest the tests never checked.
+func receiptStoreSection() configtest.Section {
+	return configtest.Section{
+		Read:     readReceipt,
+		Defaults: DefaultReceiptStoreConfig(),
 
-// TestKeyNamesMatchTheRecordedNames pins the four key names themselves.
-//
-// This section is where a retired spelling is already load-bearing. receipt-store.backend is a
-// hard boot error because it was renamed to rs-backend, which is what a rename costs when it is
-// done without a record of the name it replaced.
-func TestKeyNamesMatchTheRecordedNames(t *testing.T) {
-	configtest.CheckKeyNames(t, "receipt-store", receiptKeys)
-}
+		// This section is where a retired spelling is already load-bearing. receipt-store.backend is
+		// a hard boot error because it was renamed to rs-backend, which is what a rename costs when
+		// it is done without a record of the name it replaced.
+		Keys: receiptKeys,
 
-// TestManifestNamesEveryField enforces the claim receiptKeys makes about itself: that it names
-// every key the reader looks up. Left as prose the claim can drift, and it is the artifact a
-// replacement implementation reads as this section's contract.
-func TestManifestNamesEveryField(t *testing.T) {
-	configtest.CheckManifestCoversEveryField(t, "receipt-store", DefaultReceiptStoreConfig(), receiptKeys,
-		"Backend",     // FuzzReceiptBackend: fail-closed allowlist, not a plain cast
-		"DBDirectory", // FuzzReceiptDBDirectory: the trim is the behavior under test
-		// KeepRecent is tagged mapstructure:"-", so no [receipt-store] key reaches it. The app
-		// layer sets it from min-retain-blocks instead, which is worth recording here: a field
-		// sitting in a config struct that configuration cannot address is exactly the kind of
-		// thing a replacement manager would otherwise try to map a key onto.
-		"KeepRecent",
-		// ExternalPruning is tagged mapstructure:"-" for a sharper reason than KeepRecent: it is
-		// only correct when this store is registered with a running StorageGarbageCollector, which
-		// is a property of how the process was wired and not something an operator can assert from
-		// app.toml. Exposing a key for it would let a node stand its pruner down with nothing to
-		// replace it, and the resulting unbounded growth is silent.
-		"ExternalPruning",
-	)
-}
-
-// TestWiringMatchesTheRecord pins which checks each of this package's sections is wired to.
-//
-// Every other check here reports a change to what it asserts. None reports a check being removed, so
-// this records the wiring and fails when it thins out.
-func TestWiringMatchesTheRecord(t *testing.T) {
-	configtest.CheckWiring(t)
-}
-
-// TestNoExperimentalKeyShadowsThisSection is this section's half of the experimental collision
-// check.
-//
-// It lives here because a KeySpec manifest is an unexported package-level var in a _test.go file,
-// so this is the only test binary that can see both this section's live keys and the experimental
-// registry. A test in cmd/seid/cmd cannot reference these vars at all.
-//
-// A declared experimental name is the path the key occupies after promotion, so a name equal to one
-// of these keys would put two declarations on one path. The check compares whole spellings only;
-// a semantic duplicate under a different name stays a review question.
-func TestNoExperimentalKeyShadowsThisSection(t *testing.T) {
-	configtest.CheckNoExperimentalKeyShadowsThisSection(t, "receipt-store", receiptKeys)
+		CoveredElsewhere: []string{
+			"Backend",     // FuzzReceiptBackend: fail-closed allowlist, not a plain cast
+			"DBDirectory", // FuzzReceiptDBDirectory: the trim is the behavior under test
+			// KeepRecent is tagged mapstructure:"-", so no [receipt-store] key reaches it. The app
+			// layer sets it from min-retain-blocks instead, which is worth recording here: a field
+			// sitting in a config struct that configuration cannot address is exactly the kind of
+			// thing a replacement manager would otherwise try to map a key onto.
+			"KeepRecent",
+			// ExternalPruning is tagged mapstructure:"-" for a sharper reason than KeepRecent: it is
+			// only correct when this store is registered with a running StorageGarbageCollector,
+			// which is a property of how the process was wired and not something an operator can
+			// assert from app.toml. Exposing a key for it would let a node stand its pruner down
+			// with nothing to replace it, and the resulting unbounded growth is silent.
+			"ExternalPruning",
+		},
+	}
 }

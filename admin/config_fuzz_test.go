@@ -35,7 +35,7 @@ func FuzzReadConfigEnabled(f *testing.F) {
 	seeds.Add(fuzzing.KindNil, "", int64(0), false)
 	seeds.Add(fuzzing.KindMap, "", int64(0), false)
 
-	configtest.CheckEveryRowHasADiscriminatingSeed(f, "admin_server", readAdmin, adminKeys, seeds)
+	configtest.FuzzSection(f, "admin_server", adminServerSection(), seeds)
 
 	f.Fuzz(func(t *testing.T, kind uint8, s string, n int64, b bool) {
 		spec := adminKeys[0]
@@ -108,60 +108,33 @@ func isLiteralLoopbackHostPort(address string) bool {
 	return ip != nil && ip.IsLoopback()
 }
 
-// TestReadConfigAbsentKeysKeepDefaults pins the section baseline: no
-// [admin_server] section means the server is off at the loopback default.
-func TestReadConfigAbsentKeysKeepDefaults(t *testing.T) {
-	configtest.CheckAbsent(t, "admin_server", readAdmin, admin.DefaultConfig)
+// TestAdminServerSection is this section's whole coverage, in one call.
+//
+// One call rather than six. Six call sites are six things a later edit can remove one of while every
+// remaining check still passes, which is why a record of the wiring had to exist. What each check
+// asserts is named by its subtest.
+func TestAdminServerSection(t *testing.T) {
+	configtest.CheckSection(t, "admin_server", adminServerSection())
 }
 
-// TestDefaultsMatchTheRecordedValues pins the admin_server defaults themselves.
+// adminServerSection states this section for both the test and the fuzz target.
 //
-// The absent-keys row above proves the reader returns the declared defaults; it cannot prove
-// which values those are, because both sides of that comparison come from this package. This
-// compares them against testdata/admin_server.golden, an independent recording, so a default that
-// moves shows the new value in a diff instead of passing silently.
-func TestDefaultsMatchTheRecordedValues(t *testing.T) {
-	configtest.CheckDefaults(t, "admin_server", admin.DefaultConfig)
-}
+// Shared so the two cannot describe the same section differently, which is how a fuzz target ends up
+// driving a manifest the tests never checked.
+func adminServerSection() configtest.Section {
+	return configtest.Section{
+		// An absent [admin_server] section means the server is off at the loopback default.
+		Read:     readAdmin,
+		Defaults: admin.DefaultConfig,
 
-// TestKeyNamesMatchTheRecordedNames pins the key name itself.
-//
-// This row spells its key as a literal, so it already survives a rename in the reader: the
-// row would keep the old spelling and the discriminating-seed check would fire. The record is
-// what covers the other direction — the row being edited to match a renamed reader, or being
-// converted to reference a shared constant later — so the protection does not depend on which
-// spelling this file happens to use today.
-func TestKeyNamesMatchTheRecordedNames(t *testing.T) {
-	configtest.CheckKeyNames(t, "admin_server", adminKeys)
-}
+		// This section's row spells its key as a literal, so it already survives a rename in the
+		// reader: the row would keep the old spelling and the discriminating-seed check would fire.
+		// The record covers the other direction, the row being edited to match a renamed reader, so
+		// the protection does not depend on which spelling this file happens to use today.
+		Keys: adminKeys,
 
-// TestManifestNamesEveryField enforces the claim adminKeys makes about itself: that it names
-// every key the reader looks up. Left as prose the claim can drift, and it is the artifact a
-// replacement implementation reads as this section's contract.
-func TestManifestNamesEveryField(t *testing.T) {
-	configtest.CheckManifestCoversEveryField(t, "admin_server", admin.DefaultConfig, adminKeys,
-		"Address", // FuzzReadConfigAddress: two behaviors layered on one key, past what a row says
-	)
-}
-
-// TestWiringMatchesTheRecord pins which checks each of this package's sections is wired to.
-//
-// Every other check here reports a change to what it asserts. None reports a check being removed, so
-// this records the wiring and fails when it thins out.
-func TestWiringMatchesTheRecord(t *testing.T) {
-	configtest.CheckWiring(t)
-}
-
-// TestNoExperimentalKeyShadowsThisSection is this section's half of the experimental collision
-// check.
-//
-// It lives here because a KeySpec manifest is an unexported package-level var in a _test.go file,
-// so this is the only test binary that can see both this section's live keys and the experimental
-// registry. A test in cmd/seid/cmd cannot reference these vars at all.
-//
-// A declared experimental name is the path the key occupies after promotion, so a name equal to one
-// of these keys would put two declarations on one path. The check compares whole spellings only;
-// a semantic duplicate under a different name stays a review question.
-func TestNoExperimentalKeyShadowsThisSection(t *testing.T) {
-	configtest.CheckNoExperimentalKeyShadowsThisSection(t, "admin_server", adminKeys)
+		CoveredElsewhere: []string{
+			"Address", // FuzzReadConfigAddress: two behaviors layered on one key, past what a row says
+		},
+	}
 }

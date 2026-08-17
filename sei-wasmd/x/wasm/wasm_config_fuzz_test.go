@@ -59,18 +59,12 @@ func FuzzReadWasmConfig(f *testing.F) {
 	seeds.AddRow(uint(0), fuzzing.KindNil, "", int64(0), false)
 	seeds.AddRow(uint(1), fuzzing.KindMap, "", int64(0), false)
 
-	configtest.CheckEveryRowHasADiscriminatingSeed(f, "wasm", readWasm, wasmKeys, seeds)
+	configtest.FuzzSection(f, "wasm", wasmSection(), seeds)
 
 	f.Fuzz(func(t *testing.T, keyIdx uint, kind uint8, s string, n int64, b bool) {
 		spec := configtest.Pick(wasmKeys, keyIdx)
 		configtest.CheckRow(t, "wasm", readWasm, spec, fuzzing.ConfigValue(kind, s, n, b))
 	})
-}
-
-// TestReadWasmConfigAbsentKeysKeepDefaults pins the section baseline — the in-code
-// defaults, which is what a node with no [wasm] section resolves.
-func TestReadWasmConfigAbsentKeysKeepDefaults(t *testing.T) {
-	configtest.CheckAbsent(t, "wasm", readWasm, types.DefaultWasmConfig())
 }
 
 // TestQueryGasLimitInCodeDefaultStaysAboveTheGeneratedLimit pins this package's half of
@@ -182,57 +176,28 @@ func FuzzWasmSimulationGasLimit(f *testing.F) {
 	})
 }
 
-// TestDefaultsMatchTheRecordedValues pins the wasm defaults themselves.
+// TestWasmSection is this section's whole coverage, in one call.
 //
-// The absent-keys coverage in this file proves the reader returns the declared defaults; it
-// cannot prove which values those are, because both sides of that comparison come from the
-// same package. This compares them against testdata/wasm.golden, an independent
-// recording, so a default that moves shows the new value in a diff instead of passing
-// silently.
-func TestDefaultsMatchTheRecordedValues(t *testing.T) {
-	configtest.CheckDefaults(t, "wasm", types.DefaultWasmConfig())
+// One call rather than six. Six call sites are six things a later edit can remove one of while
+// every remaining check still passes, which is why a record of the wiring had to exist. What each
+// check asserts is named by its subtest.
+func TestWasmSection(t *testing.T) {
+	configtest.CheckSection(t, "wasm", wasmSection())
 }
 
-// TestKeyNamesMatchTheRecordedNames pins the three key names themselves.
+// wasmSection states this section for both the test and the fuzz target.
 //
-// Two are literals and the third, server.FlagTrace, is the global --trace flag reached
-// through the sei-cosmos constant that declares it — a key whose value can be edited in
-// another module entirely, where nothing suggests that a wasm contract debug switch rides on
-// it. The recorded name is why that edit fails here.
-//
-// The record holds "trace" without a section prefix for that row, which is correct: the
-// third row is not a [wasm] key at all.
-func TestKeyNamesMatchTheRecordedNames(t *testing.T) {
-	configtest.CheckKeyNames(t, "wasm", wasmKeys)
-}
+// Shared so the two cannot describe the same section differently, which is how a fuzz target ends
+// up driving a manifest the tests never checked.
+func wasmSection() configtest.Section {
+	return configtest.Section{
+		Read:     readWasm,
+		Defaults: types.DefaultWasmConfig(),
 
-// TestManifestNamesEveryField enforces the claim wasmKeys makes about itself: that it names
-// every key the reader looks up. Left as prose the claim can drift, and it is the artifact a
-// replacement implementation reads as this section's contract.
-func TestManifestNamesEveryField(t *testing.T) {
-	configtest.CheckManifestCoversEveryField(t, "wasm", types.DefaultWasmConfig(), wasmKeys,
-		"SimulationGasLimit", // FuzzWasmSimulationGasLimit: the one read with a string-shaped guard
-	)
-}
+		Keys: wasmKeys,
 
-// TestWiringMatchesTheRecord pins which checks each of this package's sections is wired to.
-//
-// Every other check here reports a change to what it asserts. None reports a check being removed, so
-// this records the wiring and fails when it thins out.
-func TestWiringMatchesTheRecord(t *testing.T) {
-	configtest.CheckWiring(t)
-}
-
-// TestNoExperimentalKeyShadowsThisSection is this section's half of the experimental collision
-// check.
-//
-// It lives here because a KeySpec manifest is an unexported package-level var in a _test.go file,
-// so this is the only test binary that can see both this section's live keys and the experimental
-// registry. A test in cmd/seid/cmd cannot reference these vars at all.
-//
-// A declared experimental name is the path the key occupies after promotion, so a name equal to one
-// of these keys would put two declarations on one path. The check compares whole spellings only;
-// a semantic duplicate under a different name stays a review question.
-func TestNoExperimentalKeyShadowsThisSection(t *testing.T) {
-	configtest.CheckNoExperimentalKeyShadowsThisSection(t, "wasm", wasmKeys)
+		CoveredElsewhere: []string{
+			"SimulationGasLimit", // FuzzWasmSimulationGasLimit: the one read with a string-shaped guard
+		},
+	}
 }

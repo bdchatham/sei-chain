@@ -78,9 +78,6 @@ func TestNoExperimentalKeyShadowsLightInvarianceAfterRegistration(t *testing.T) 
 // declared key and asks the reader which setting changed. A field paired with the wrong setting fails
 // here rather than resolving one operator's value into another's setting.
 func TestTheGenesisSchemaDescribesTheReaderItStandsInFor(t *testing.T) {
-	// The section name stays a literal here. The wiring record reads it from this call's second
-	// argument, and a constant or a table entry would record every schema check under one placeholder
-	// row, so removing three of four would not show up as lost coverage.
 	configtest.CheckSchemaMatchesTheReader(t, "genesis", configtest.SchemaCheck{
 		Read: func(opts configtest.AppOpts) (any, error) {
 			return ReadGenesisImportConfig(opts)
@@ -163,7 +160,6 @@ func TestNoExperimentalKeyShadowsGenesisAfterRegistration(t *testing.T) {
 // its reads, so an
 // absent key resolves to zero rather than to the default beside it.
 func TestTheStateStoreSchemaDescribesTheReaderItStandsInFor(t *testing.T) {
-	// The section name stays a literal. The wiring record reads it from this call's second argument.
 	configtest.CheckSchemaMatchesTheReader(t, "state-store", configtest.SchemaCheck{
 		Read: func(opts configtest.AppOpts) (any, error) {
 			return parseSSConfigs(opts), nil
@@ -270,7 +266,6 @@ func TestNoExperimentalKeyShadowsStateStoreAfterRegistration(t *testing.T) {
 // turning automatic mode off moves the mode along with it. Neither reaches exactly one setting.
 // FuzzSCWriteMode covers the pair, and the one-setting rule keeps its meaning for the other eighteen.
 func TestTheStateCommitSchemaDescribesTheReaderItStandsInFor(t *testing.T) {
-	// The section name stays a literal. The wiring record reads it from this call's second argument.
 	configtest.CheckSchemaMatchesTheReader(t, "state-commit", configtest.SchemaCheck{
 		Read: func(opts configtest.AppOpts) (any, error) {
 			return parseSCConfigs(opts), nil
@@ -388,8 +383,7 @@ func TestNoExperimentalKeyShadowsStateCommitAfterRegistration(t *testing.T) {
 }
 
 // The value a migration writes for a key an operator's files do not carry, held against what each reader
-// actually does with an absent key. The section name stays a literal, since the wiring record reads it from
-// the call's second argument.
+// actually does with an absent key.
 
 func TestTheStateStoreZeroWhenAbsentDeclarationMatchesItsReader(t *testing.T) {
 	configtest.CheckZeroWhenAbsentMatchesTheReader(t, "state-store",

@@ -62,18 +62,12 @@ func FuzzReadConfig(f *testing.F) {
 	seeds.AddRow(uint(2), fuzzing.KindStringSlice, "", int64(0), false)
 	seeds.AddRow(uint(2), fuzzing.KindNil, "", int64(0), false)
 
-	configtest.CheckEveryRowHasADiscriminatingSeed(f, "eth_replay", readETHReplay, ethReplayKeys, seeds)
+	configtest.FuzzSection(f, "eth_replay", ethReplaySection(), seeds)
 
 	f.Fuzz(func(t *testing.T, keyIdx uint, kind uint8, s string, n int64, b bool) {
 		spec := configtest.Pick(ethReplayKeys, keyIdx)
 		configtest.CheckRow(t, "eth_replay", readETHReplay, spec, fuzzing.ConfigValue(kind, s, n, b))
 	})
-}
-
-// TestReadConfigAbsentKeysKeepDefaults pins the section baseline, most
-// importantly that replay stays disabled when the section is absent.
-func TestReadConfigAbsentKeysKeepDefaults(t *testing.T) {
-	configtest.CheckAbsent(t, "eth_replay", readETHReplay, replay.DefaultConfig)
 }
 
 // TestTemplateKeyIsInert records the divergence between the templated key name
@@ -95,51 +89,24 @@ func TestTemplateKeyIsInert(t *testing.T) {
 	}
 }
 
-// TestDefaultsMatchTheRecordedValues pins the eth_replay defaults themselves.
+// TestETHReplaySection is this section's whole coverage, in one call.
 //
-// The absent-keys row above proves the reader returns the declared defaults; it cannot prove
-// which values those are, because both sides of that comparison come from this package. This
-// compares them against testdata/eth_replay.golden, an independent recording, so a default that
-// moves shows the new value in a diff instead of passing silently.
-func TestDefaultsMatchTheRecordedValues(t *testing.T) {
-	configtest.CheckDefaults(t, "eth_replay", replay.DefaultConfig)
+// One call rather than six. Six call sites are six things a later edit can remove one of while
+// every remaining check still passes, which is why a record of the wiring had to exist. What each
+// check asserts is named by its subtest.
+func TestETHReplaySection(t *testing.T) {
+	configtest.CheckSection(t, "eth_replay", ethReplaySection())
 }
 
-// TestKeyNamesMatchTheRecordedNames pins the four key names themselves.
+// ethReplaySection states this section for both the test and the fuzz target.
 //
-// This section already carries the cost of an unrecorded rename: the app.toml template renders
-// eth_replay_contract_state_checks and the reader looks up contract_state_checks, so the key an
-// operator edits in a generated file does nothing. The record holds the spelling that
-// resolves, which is the one a fix has to migrate from rather than quietly replace.
-func TestKeyNamesMatchTheRecordedNames(t *testing.T) {
-	configtest.CheckKeyNames(t, "eth_replay", ethReplayKeys)
-}
+// Shared so the two cannot describe the same section differently, which is how a fuzz target ends
+// up driving a manifest the tests never checked.
+func ethReplaySection() configtest.Section {
+	return configtest.Section{
+		Read:     readETHReplay,
+		Defaults: replay.DefaultConfig,
 
-// TestManifestNamesEveryField enforces the claim ethReplayKeys makes about itself: that it names
-// every key the reader looks up. Left as prose the claim can drift, and it is the artifact a
-// replacement implementation reads as this section's contract.
-func TestManifestNamesEveryField(t *testing.T) {
-	configtest.CheckManifestCoversEveryField(t, "eth_replay", replay.DefaultConfig, ethReplayKeys)
-}
-
-// TestWiringMatchesTheRecord pins which checks each of this package's sections is wired to.
-//
-// Every other check here reports a change to what it asserts. None reports a check being removed, so
-// this records the wiring and fails when it thins out.
-func TestWiringMatchesTheRecord(t *testing.T) {
-	configtest.CheckWiring(t)
-}
-
-// TestNoExperimentalKeyShadowsThisSection is this section's half of the experimental collision
-// check.
-//
-// It lives here because a KeySpec manifest is an unexported package-level var in a _test.go file,
-// so this is the only test binary that can see both this section's live keys and the experimental
-// registry. A test in cmd/seid/cmd cannot reference these vars at all.
-//
-// A declared experimental name is the path the key occupies after promotion, so a name equal to one
-// of these keys would put two declarations on one path. The check compares whole spellings only;
-// a semantic duplicate under a different name stays a review question.
-func TestNoExperimentalKeyShadowsThisSection(t *testing.T) {
-	configtest.CheckNoExperimentalKeyShadowsThisSection(t, "eth_replay", ethReplayKeys)
+		Keys: ethReplayKeys,
+	}
 }
