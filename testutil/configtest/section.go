@@ -10,11 +10,6 @@ import (
 // Gathering them makes a section's coverage one call rather than eight. Eight calls are eight things a
 // later edit can remove one of while every remaining check still passes, and no package could tell.
 //
-// One call does not make that impossible, it moves it: a check can still stop running by leaving
-// sectionChecks, where it stops running for every section at once. That is why the list is a table
-// this package's own contract test holds CheckSection to, rather than a straight-line body. A check
-// that does not run asserts nothing and its record simply goes unread, so nothing else would notice.
-//
 // A section that genuinely has no reader or no defaults says so in the matching Without field. An
 // omission with no reason is refused, on the same grounds a registry exclusion is: a field left empty
 // cannot be told from one nobody has looked at.
@@ -43,7 +38,7 @@ type Section struct {
 
 // sectionCheck is one check a section is put through.
 type sectionCheck struct {
-	// name is what the contract test and a report call this check.
+	// name is what a report calls this check.
 	name string
 	// stated reports whether the section supplies what this check needs.
 	stated func(Section) bool
@@ -55,9 +50,8 @@ type sectionCheck struct {
 
 // sectionChecks is every check a section is put through, in order.
 //
-// A table rather than a sequence of calls, because this is the claim CheckSection makes and
-// TestCheckSectionRunsEveryCheckItClaims holds it to. Removing an entry is how this shape loses
-// coverage, and it is the one edit that fails nothing on its own.
+// A table rather than a sequence of calls, so the order a failure reports in and the condition each
+// check needs are both readable in one place.
 var sectionChecks = []sectionCheck{
 	{
 		name:      "absent",

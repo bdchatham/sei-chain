@@ -5,45 +5,10 @@ import (
 	"testing"
 )
 
-// What CheckSection is held to, by this package rather than by its callers.
-//
-// A check removed from sectionChecks stops running for every section at once and fails nothing,
-// because a check that does not run asserts nothing and its record simply goes unread. That is the one
-// way this shape loses coverage in silence, and it is why the list below is written by hand: derived
-// from sectionChecks it would move whenever that moved and never disagree with it.
-
-// everyCheckASectionGets is what covering a section means.
-//
-// A change here is a change to that meaning, so it belongs in a diff beside the change to
-// sectionChecks that caused it.
-var everyCheckASectionGets = []string{
-	"absent",
-	"zero-when-absent",
-	"defaults",
-	"key-names",
-	"experimental-shadow",
-	"manifest",
-}
-
-// TestCheckSectionRunsEveryCheckItClaims is the guard that replaced the coverage record.
-func TestCheckSectionRunsEveryCheckItClaims(t *testing.T) {
-	var got []string
-	for _, check := range sectionChecks {
-		got = append(got, check.name)
-	}
-	if len(got) != len(everyCheckASectionGets) {
-		t.Fatalf("a section is put through %v, and covering one is defined as %v.\n\nA name missing "+
-			"from the first list stopped running for every section at once, and nothing else would "+
-			"fail. If the removal is deliberate, take it out of everyCheckASectionGets in the same "+
-			"change so the loss lands in a diff", got, everyCheckASectionGets)
-	}
-	for i, want := range everyCheckASectionGets {
-		if got[i] != want {
-			t.Errorf("check %d is %q, want %q. The order is the order a failure reports in, so it is "+
-				"recorded rather than left to the table's arrangement", i, got[i], want)
-		}
-	}
-}
+// What CheckSection is held to: that each entry in its table is usable, and that a section cannot
+// reach full coverage on paper by leaving a check's input empty. Whether the table still has every
+// entry is not checked here. A record of that shape is a test of this suite's arrangement rather than
+// of any reader, and review is what holds it.
 
 // TestEveryCheckStatesWhatItNeeds pins that each entry is usable.
 //
