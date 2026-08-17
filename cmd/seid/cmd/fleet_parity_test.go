@@ -16,14 +16,13 @@ import (
 	"github.com/sei-protocol/sei-chain/config/registry"
 	evmrpcconfig "github.com/sei-protocol/sei-chain/evmrpc/config"
 	gigaconfig "github.com/sei-protocol/sei-chain/giga/executor/config"
+	"github.com/sei-protocol/sei-chain/sei-cosmos/server"
 	srvconfig "github.com/sei-protocol/sei-chain/sei-cosmos/server/config"
 	"github.com/sei-protocol/sei-chain/sei-wasmd/x/wasm"
 	"github.com/sei-protocol/sei-chain/testutil/configtest"
 	"github.com/sei-protocol/sei-chain/x/evm/blocktest"
 	"github.com/sei-protocol/sei-chain/x/evm/querier"
 	"github.com/sei-protocol/sei-chain/x/evm/replay"
-
-	"github.com/sei-protocol/sei-chain/sei-cosmos/server"
 )
 
 // Whether a sei.toml adopted from a node's own files resolves what those files resolve.
@@ -78,28 +77,56 @@ func requireSameReaderOutput(t *testing.T, legacy, v2 *server.Context, msgAndArg
 	require.NotNil(t, v2.Viper, "v2 Apply left serverCtx.Viper nil"+where)
 
 	for _, reader := range bootReaders {
-		legacyCfg, legacyErr := reader.read(legacy)
-		v2Cfg, v2Err := reader.read(v2)
-
-		if legacyErr != nil || v2Err != nil {
-			require.Equal(t, legacyErr, v2Err,
-				"the %s reader disagrees about whether the configuration is readable%s",
-				reader.name, where)
-			continue
-		}
-		if reflect.DeepEqual(legacyCfg, v2Cfg) {
-			continue
-		}
-		// They differ, so the difference is reported through the dump, whose one line per leaf is
-		// readable where two nested structs printed whole are not. An empty slice standing in for a
-		// nil one is the single difference this tolerates, for the reason writeAbsentSliceAsEmpty
-		// gives, and any other leaf still fails here.
-		require.Equal(t,
-			writeAbsentSliceAsEmpty(configtest.Dump(legacyCfg)),
-			writeAbsentSliceAsEmpty(configtest.Dump(v2Cfg)),
-			"the %s reader resolves a different configuration from sei.toml than from the node's own "+
-				"files%s", reader.name, where)
+		requireOneReaderAgrees(t, reader, legacy, v2, where)
 	}
+}
+
+// requireOneReaderAgrees compares what a single reader produces from each context.
+//
+// A reader that refuses one context and accepts the other is a divergence whichever way round it
+// falls, so the errors are compared before the values. Comparing values alone would read a refusal as
+// an empty configuration that happened to match.
+//
+// A difference is reported through the dump, whose one line per leaf is legible where two nested
+// structs printed whole are not.
+func requireOneReaderAgrees(t *testing.T, reader bootReader, legacy, v2 *server.Context, where string) {
+	t.Helper()
+	legacyCfg, legacyErr := reader.read(legacy)
+	v2Cfg, v2Err := reader.read(v2)
+
+	if legacyErr != nil || v2Err != nil {
+		require.Equal(t, legacyErr, v2Err,
+			"the %s reader disagrees about whether the configuration is readable%s",
+			reader.name, where)
+		return
+	}
+	if reflect.DeepEqual(legacyCfg, v2Cfg) {
+		return
+	}
+	require.Equal(t, comparableDump(legacyCfg), comparableDump(v2Cfg),
+		"the %s reader resolves a different configuration from sei.toml than from the node's own "+
+			"files%s", reader.name, where)
+}
+
+// requireSameTendermintConfig compares the struct config.toml is decoded into.
+//
+// The readers above cover the sections a lookup delivers, and this covers the ones a decode does,
+// which is every section config.toml owns. Without it a value adoption garbled on that side would be
+// compared by nothing.
+//
+// It cannot show that the decode delivery ran. Both managers start from the handler's own decode of
+// config.toml and v2 decodes the declared keys over the top, so a delivery that decoded nothing leaves
+// the two structs equal. What it does show is that the values adoption carried decode back to what the
+// file itself decodes to, which is the half of the claim this can make. The delivery's own tests are
+// in the configmanager package.
+func requireSameTendermintConfig(t *testing.T, legacy, v2 *server.Context, where string) {
+	t.Helper()
+	require.NotNil(t, legacy.Config, "legacy Apply left serverCtx.Config nil"+where)
+	require.NotNil(t, v2.Config, "v2 Apply left serverCtx.Config nil"+where)
+
+	require.Equal(t, comparableDump(legacy.Config), comparableDump(v2.Config),
+		"the config.toml settings resolve differently from sei.toml than from the node's own files%s",
+		where)
 }
 
 // requireTheDeliveryReachedTheChannel is what stops the comparison above passing on nothing.
@@ -124,14 +151,15 @@ func requireTheDeliveryReachedTheChannel(t *testing.T, legacy, v2 *server.Contex
 			"the reader comparison holds two readings of the same files%s", where)
 }
 
-// writeAbsentSliceAsEmpty renders a nil slice the way one that went through sei.toml reads back.
+// comparableDump renders a configuration as one line per leaf, with a nil slice shown the way one that
+// went through sei.toml reads back.
 //
 // TOML has no null, so a key whose absent value is a nil slice is written as an empty list and read
 // back as an empty slice. The v2 path cannot produce a nil slice at all, which makes nil against empty
 // the one difference a parity comparison has to allow rather than a finding it could act on. Every
 // other leaf is compared as it stands.
-func writeAbsentSliceAsEmpty(dump string) string {
-	return strings.ReplaceAll(dump, "<nil-slice>", "<empty-slice>")
+func comparableDump(cfg any) string {
+	return strings.ReplaceAll(configtest.Dump(cfg), "<nil-slice>", "<empty-slice>")
 }
 
 // requireTheReaderListIsUsable refuses a list the comparison could walk without reading anything.
@@ -205,6 +233,7 @@ func TestAdoptedSeiTomlResolvesWhatTheNodesFilesResolve(t *testing.T) {
 
 			where := callerContext([]any{"the " + node.name + " fixture"})
 			requireTheDeliveryReachedTheChannel(t, legacyCtx, v2Ctx, where)
+			requireSameTendermintConfig(t, legacyCtx, v2Ctx, where)
 			requireSameReaderOutput(t, legacyCtx, v2Ctx, "the %s fixture", node.name)
 		})
 	}
