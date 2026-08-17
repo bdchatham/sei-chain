@@ -54,6 +54,9 @@ type Adoption struct {
 	// Unconvertible are keys whose existing value could not be read as the declared type, sorted.
 	// Each is written at its absent value instead, so nothing silently becomes a value nobody chose.
 	Unconvertible []Rejection
+	// Undeclared are keys the existing files carry that no section declares, sorted. The adopted file
+	// does not hold them, because there is no setting for them to be written as.
+	Undeclared []string
 }
 
 // Rejection is one existing value that could not be carried over.
@@ -109,7 +112,7 @@ func Adopt(node Existing, mode registry.Mode) (Adoption, error) {
 	if err != nil {
 		return Adoption{}, err
 	}
-	out := Adoption{File: file}
+	out := Adoption{File: file, Undeclared: keysNoSectionDeclares(node.Files, resolved)}
 
 	for _, key := range sortedKeys(resolved) {
 		d := declared{key: key, typ: reflect.TypeOf(resolved.Keys[key].Value), absent: absent[key]}
@@ -127,6 +130,22 @@ func Adopt(node Existing, mode registry.Mode) (Adoption, error) {
 		return out.Unconvertible[i].Key < out.Unconvertible[j].Key
 	})
 	return out, nil
+}
+
+// keysNoSectionDeclares names the keys a node's files hold that the registry does not resolve.
+//
+// The one place adoption reads the files as a whole rather than a key at a time. Every layer is
+// otherwise consulted for a key some section declared, so a setting the registry has no home for is
+// never looked at, and without this nothing records that the node had it.
+func keysNoSectionDeclares(files Source, resolved registry.Resolved) []string {
+	var out []string
+	for _, key := range files.AllKeys() {
+		if _, declared := resolved.Keys[key]; !declared {
+			out = append(out, key)
+		}
+	}
+	sort.Strings(out)
+	return out
 }
 
 // declared is what the registry says about one key.
@@ -207,6 +226,13 @@ func adoptionPreamble(mode registry.Mode, out Adoption) []string {
 		"",
 		" Every key below is a written value, which this binary treats as your decision and never",
 		" rewrites, so this node keeps them across an upgrade.",
+	}
+	if len(out.Undeclared) > 0 {
+		lines = append(lines,
+			"",
+			fmt.Sprintf(" %d key(s) in the files this was adopted from are not settings this binary",
+				len(out.Undeclared)),
+			" reads, so they are not written here. They were named when this file was written.")
 	}
 	if len(out.Environment) > 0 {
 		lines = append(lines,
@@ -397,6 +423,16 @@ func (a Adoption) Report() string {
 		for _, r := range a.Unconvertible {
 			b.WriteString(fmt.Sprintf("  %s held %#v: %s\n", r.Key, r.Value, r.Reason))
 		}
+	}
+	if len(a.Undeclared) > 0 {
+		b.WriteString(fmt.Sprintf("\n%d key(s) in this node's files are not settings this binary reads, "+
+			"so the new file does not hold them:\n", len(a.Undeclared)))
+		for _, k := range a.Undeclared {
+			b.WriteString(fmt.Sprintf("  %s\n", k))
+		}
+		b.WriteString("A key this binary renamed or stopped reading belongs here and is safe to lose. " +
+			"One it has yet to declare belongs here too, and that one is a setting this node had and " +
+			"the new file does not.\n")
 	}
 	if len(a.Environment) > 0 {
 		b.WriteString(fmt.Sprintf("\n%d setting(s) come from environment variables and were not "+
