@@ -14,6 +14,7 @@ genesis	CheckEveryRowHasADiscriminatingSeed
 genesis	CheckKeyNames
 genesis	CheckManifestCoversEveryField
 genesis	CheckRow
+genesis	CheckSchemaMatchesTheReader
 light_invariance	CheckAbsent
 light_invariance	CheckDefaults
 light_invariance	CheckEveryRowHasADiscriminatingSeed
@@ -24,8 +25,10 @@ state-commit	CheckDefaults
 state-commit	CheckEveryRowHasADiscriminatingSeed
 state-commit	CheckKeyNames
 state-commit	CheckRow
+state-commit	CheckSchemaMatchesTheReader
 state-store	CheckDefaults
 state-store	CheckEveryRowHasADiscriminatingSeed
 state-store	CheckKeyNames
 state-store	CheckManifestCoversEveryField
 state-store	CheckRow
+state-store	CheckSchemaMatchesTheReader
