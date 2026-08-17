@@ -6,8 +6,4 @@
 # so this records which checks cover a section rather than how many times.
 # Regenerate with `go test ./<pkg>/ -run TestWiringMatchesTheRecord -update` and read the diff.
 
-api	CheckSchemaMatchesTheReader
-base	CheckSchemaMatchesTheReader
-grpc	CheckSchemaMatchesTheReader
-state-sync	CheckNoExperimentalKeyShadowsThisSection
-telemetry	CheckSchemaMatchesTheReader
+keyspace	CheckDeclaredSurface

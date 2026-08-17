@@ -1,7 +1,9 @@
 package cosmosbase_test
 
 import (
+	"strings"
 	"testing"
+	"time"
 
 	"github.com/sei-protocol/sei-chain/config/cosmosbase"
 	"github.com/sei-protocol/sei-chain/config/registry"
@@ -179,5 +181,163 @@ func TestPruningKeepEveryIsReadByThePruningOptions(t *testing.T) {
 	if got.KeepEvery != 3 {
 		t.Errorf("pruning-keep-every = 3 resolved to KeepEvery %d. The key is declared, so a value an "+
 			"operator writes has to reach the setting it names", got.KeepEvery)
+	}
+}
+
+// TestTheAPISchemaDescribesTheReaderItStandsInFor holds the served-interface keys against GetConfig.
+func TestTheAPISchemaDescribesTheReaderItStandsInFor(t *testing.T) {
+	// The section name stays a literal. The wiring record reads it from this call's second argument.
+	configtest.CheckSchemaMatchesTheReader(t, "api", configtest.SchemaCheck{
+		Read: func(opts configtest.AppOpts) (any, error) {
+			cfg, err := readServerConfig(opts)
+			if err != nil {
+				return nil, err
+			}
+			return cfg.API, nil
+		},
+		// Each probe differs from what an absent key casts to, which for every one of these is zero.
+		Probe: map[string]any{
+			"api.enable":               true,
+			"api.swagger":              true,
+			"api.enabled-unsafe-cors":  true,
+			"api.address":              "tcp://127.0.0.1:1318",
+			"api.max-open-connections": uint(64),
+			"api.rpc-read-timeout":     uint(30),
+			"api.rpc-write-timeout":    uint(40),
+			"api.rpc-max-body-bytes":   uint(2_000_000),
+		},
+	})
+}
+
+// TestTheGRPCSchemaDescribesTheReaderItStandsInFor holds the same for the gRPC interface.
+//
+// Seven of its eleven keys carry a duration, which no other declared section has. A duration reaches the
+// reader as text an operator writes, and the reader casts it, so the probes are written the way a file
+// would carry them.
+func TestTheGRPCSchemaDescribesTheReaderItStandsInFor(t *testing.T) {
+	configtest.CheckSchemaMatchesTheReader(t, "grpc", configtest.SchemaCheck{
+		Read: func(opts configtest.AppOpts) (any, error) {
+			cfg, err := readServerConfig(opts)
+			if err != nil {
+				return nil, err
+			}
+			return cfg.GRPC, nil
+		},
+		Probe: map[string]any{
+			"grpc.enable":                          true,
+			"grpc.address":                         "127.0.0.1:9091",
+			"grpc.max-recv-msg-size":               1 << 21,
+			"grpc.max-open-connections":            uint(64),
+			"grpc.max-connection-idle":             time.Minute,
+			"grpc.max-connection-age":              2 * time.Minute,
+			"grpc.max-connection-age-grace":        3 * time.Minute,
+			"grpc.keepalive-time":                  4 * time.Minute,
+			"grpc.keepalive-timeout":               5 * time.Minute,
+			"grpc.keepalive-min-time":              6 * time.Minute,
+			"grpc.keepalive-permit-without-stream": true,
+		},
+	})
+}
+
+// readServerConfig runs the reader a running node uses over a set of written values.
+//
+// The telemetry labels are supplied because the reader asserts their type outright rather than casting, and
+// refuses the whole configuration when the assertion fails. That is the one read of seventy-two that can
+// stop a node.
+func readServerConfig(opts configtest.AppOpts) (srvconfig.Config, error) {
+	v := viper.New()
+	v.Set("telemetry.global-labels", []any{})
+	for key, value := range opts {
+		v.Set(key, value)
+	}
+	return srvconfig.GetConfig(v)
+}
+
+func TestTheDerivedAPIAndGRPCKeysAreTheKeysTheReaderResolves(t *testing.T) {
+	for _, want := range []struct {
+		section string
+		count   int
+	}{{APISectionNameForTest, 8}, {GRPCSectionNameForTest, 11}} {
+		section, ok := registry.Lookup(want.section)
+		if !ok {
+			t.Fatalf("%s did not register", want.section)
+		}
+		if len(section.Keys) != want.count {
+			t.Errorf("%s derived %d keys, want %d: %v. The upstream type's tags are the only spelling, so "+
+				"a count that moves is a key an operator's file no longer reaches",
+				want.section, len(section.Keys), want.count, section.Keys)
+		}
+		for _, key := range section.Keys {
+			if !strings.HasPrefix(key, want.section+".") {
+				t.Errorf("%s derived %q, which is not under its own section", want.section, key)
+			}
+		}
+	}
+}
+
+// The section names as literals, for the count check above. Written out because the wiring record reads a
+// section name from a call's second argument, and these are not those calls.
+const (
+	APISectionNameForTest  = "api"
+	GRPCSectionNameForTest = "grpc"
+)
+
+// TestTheTelemetrySchemaDescribesTheReaderItStandsInFor holds the metric settings against GetConfig.
+//
+// The label set is probed with a list of pairs, which is the only shape its reader takes. That is the same
+// fact that keeps it out of the environment layer.
+func TestTheTelemetrySchemaDescribesTheReaderItStandsInFor(t *testing.T) {
+	// The section name stays a literal. The wiring record reads it from this call's second argument.
+	configtest.CheckSchemaMatchesTheReader(t, "telemetry", configtest.SchemaCheck{
+		Read: func(opts configtest.AppOpts) (any, error) {
+			cfg, err := readServerConfig(opts)
+			if err != nil {
+				return nil, err
+			}
+			return cfg.Telemetry, nil
+		},
+		Probe: map[string]any{
+			"telemetry.service-name":              "sei-probe",
+			"telemetry.enabled":                   true,
+			"telemetry.enable-hostname":           true,
+			"telemetry.enable-hostname-label":     true,
+			"telemetry.enable-service-label":      true,
+			"telemetry.prometheus-retention-time": int64(600),
+			"telemetry.global-labels":             []any{[]any{"chain_id", "pacific-1"}},
+		},
+	})
+}
+
+// TestTheLabelSetIsRefusedFromTheEnvironment is the decision this section is built around.
+//
+// The reader takes the label set's exact type rather than casting what it finds, so no single environment
+// string can supply it, and resolving one would install a value that stops the node. The channel is refused
+// instead, which means the file's value applies and the node runs.
+//
+// That is deliberately not what the machinery this replaces does. It resolves the variable and the node
+// refuses to start. The difference is recorded here rather than left for somebody to discover.
+func TestTheLabelSetIsRefusedFromTheEnvironment(t *testing.T) {
+	refused := registry.EnvCannotDeliver()
+	reason, named := refused[cosmosbase.GlobalLabelsKey]
+	if !named {
+		t.Fatalf("%s is not refused from the environment. A variable holding it resolves to the top of the "+
+			"order and installs a value the reader cannot use, which stops the node",
+			cosmosbase.GlobalLabelsKey)
+	}
+	if reason == "" {
+		t.Error("the refusal carries no reason, so an operator told their variable is ignored cannot learn why")
+	}
+
+	// The layer is what has to leave it out; the record above is only a statement about it.
+	layer := registry.EnvLayer(func(string) (string, bool) { return "chain_id=pacific-1", true })
+	if _, present := layer.Values[cosmosbase.GlobalLabelsKey]; present {
+		t.Error("the environment layer carried the label set anyway. The record and the layer have to agree, " +
+			"or the refusal is a comment")
+	}
+	// Every other key in the section still comes from the environment, so the refusal is one key and not
+	// the whole section.
+	if _, present := layer.Values["telemetry.service-name"]; !present {
+		t.Error("the environment layer dropped a key it can deliver. Refusing one key must not refuse the " +
+			"section it belongs to")
 	}
 }
