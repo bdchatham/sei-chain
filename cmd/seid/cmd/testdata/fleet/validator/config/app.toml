@@ -1,0 +1,143 @@
+compaction-interval = 0
+concurrency-workers = 32
+halt-height = 0
+halt-time = 0
+iavl-disable-fastnode = true
+inter-block-cache = true
+min-retain-blocks = 0
+minimum-gas-prices = '0.01usei'
+occ-enabled = true
+pruning = 'nothing'
+pruning-interval = '0'
+pruning-keep-every = '0'
+pruning-keep-recent = '0'
+
+[api]
+address = 'tcp://0.0.0.0:1317'
+enable = false
+enabled-unsafe-cors = false
+max-open-connections = 1000
+rpc-max-body-bytes = 1000000
+rpc-read-timeout = 10
+rpc-write-timeout = 0
+swagger = true
+
+[eth_block_test]
+eth_block_test_enabled = false
+eth_block_test_test_data_path = '~/testdata/'
+
+[eth_replay]
+eth_data_dir = '/root/.ethereum/chaindata'
+eth_replay_contract_state_checks = false
+eth_replay_enabled = false
+eth_rpc = 'http://44.234.105.54:18545'
+
+[evm]
+checktx_timeout = '5s'
+cors_origins = '*'
+deny_list = []
+enable_test_api = false
+enabled_legacy_sei_apis = []
+filter_timeout = '2m0s'
+http_enabled = false
+http_port = 8545
+idle_timeout = '2m0s'
+max_blocks_for_log = 2000
+max_concurrent_simulation_calls = 32
+max_concurrent_trace_calls = 10
+max_log_no_block = 10000
+max_subscriptions_new_head = 10000
+max_trace_lookback_blocks = 10000
+max_tx_pool_txs = 1000
+read_header_timeout = '30s'
+read_timeout = '30s'
+rpc_stats_interval = '10s'
+simulation_evm_timeout = '1m0s'
+simulation_gas_limit = 10000000
+slow = false
+trace_timeout = '30s'
+worker_pool_size = 32
+worker_queue_size = 1000
+write_timeout = '30s'
+ws_enabled = false
+ws_origins = '*'
+ws_port = 8546
+
+[evm_query]
+evm_query_gas_limit = 300000
+
+[genesis]
+genesis-stream-file = ''
+stream-import = false
+
+[giga_executor]
+enabled = true
+occ_enabled = true
+
+[grpc]
+address = '0.0.0.0:9090'
+enable = true
+
+[grpc-web]
+address = '0.0.0.0:9091'
+enable = false
+enable-unsafe-cors = false
+
+[light_invariance]
+supply_enabled = true
+
+[receipt-store]
+async-write-buffer = 100
+db-directory = ''
+keep-recent = 100000
+prune-interval-seconds = 600
+rs-backend = 'pebbledb'
+tx-index-backend = 'pebbledb'
+
+[sei]
+mode = 'validator'
+version = 2
+
+[state-commit]
+sc-async-commit-buffer = 0
+sc-directory = ''
+sc-enable = true
+sc-keep-recent = 0
+sc-read-mode = 'cosmos_only'
+sc-snapshot-interval = 0
+sc-snapshot-min-time-interval = 0
+sc-snapshot-prefetch-threshold = 0.0
+sc-snapshot-writer-limit = 0
+sc-write-mode = 'memiavl_only'
+
+[state-store]
+ss-async-write-buffer = 100
+ss-backend = 'pebbledb'
+ss-db-directory = ''
+ss-enable = false
+ss-evm-db-directory = ''
+ss-import-num-workers = 1
+ss-keep-last-version = true
+ss-keep-recent = 100000
+ss-prune-interval = 600
+ss-read-mode = 'cosmos_only'
+ss-use-default-comparer = false
+ss-write-mode = 'cosmos_only'
+
+[state-sync]
+snapshot-directory = ''
+snapshot-interval = 0
+snapshot-keep-recent = 2
+
+[telemetry]
+enable-hostname = false
+enable-hostname-label = false
+enable-service-label = false
+enabled = true
+global-labels = []
+prometheus-retention-time = 7200
+service-name = ''
+
+[wasm]
+lru_size = 1
+query_gas_limit = 300000

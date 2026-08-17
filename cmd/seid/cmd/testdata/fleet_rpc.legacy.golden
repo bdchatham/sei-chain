@@ -8,4 +8,15 @@
 # Read through the same source the migration reads, so this measures what that
 # migration would actually see rather than what a struct's tags suggest.
 
-(none: every key these files carry has a section that owns it)
+abci
+eth_block_test.eth_block_test_enabled
+eth_block_test.eth_block_test_test_data_path
+filter-peers
+iavl-disable-fastnode
+receipt-store.keep-recent
+receipt-store.tx-index-backend
+sei.mode
+sei.version
+state-store.ss-evm-db-directory
+state-store.ss-keep-last-version
+state-store.ss-use-default-comparer

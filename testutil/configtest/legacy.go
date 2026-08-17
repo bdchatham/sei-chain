@@ -16,9 +16,10 @@ import (
 // so a key an operator's app.toml or config.toml can hold and no section owns is a value the migration
 // reads past and drops. The operator's file said something and the new one does not.
 //
-// Empty is the finished state, and it is what makes shipping the migration safe: every value a node
-// could be carrying has somewhere to land. A record rather than an assertion because it is not empty
-// yet, and a count that shrinks in a diff is what says which release closed how much of it.
+// What a non-empty record means depends on which files were read, so the test that names one says. For
+// files this binary renders it is remaining work and has to reach empty before the migration ships. For
+// the files of a node already running an older release it is the keys that release wrote and this one no
+// longer reads, which is not work and is still worth a number that moves in a diff.
 //
 // A key nothing reads is not remaining work, and inert names the ones that are in that position. The
 // rendered files carry a few keys whose spelling no reader looks up, so declaring one would put a
@@ -74,12 +75,12 @@ func CheckLegacyKeysAreDeclared(t testing.TB, name string, legacyKeys []string, 
 	}
 
 	var b strings.Builder
-	b.WriteString("# Keys a freshly initialised node's configuration files carry that no section\n")
-	b.WriteString("# declares. Regenerate with -update.\n")
+	b.WriteString("# Keys these configuration files carry that no section declares. Regenerate with\n")
+	b.WriteString("# -update.\n")
 	b.WriteString("#\n")
 	b.WriteString("# A migration builds sei.toml from the declared keys, so every line here is a value\n")
-	b.WriteString("# an operator can write today that the migration would read past and drop. Empty is\n")
-	b.WriteString("# the finished state, and it is the condition for shipping the migration.\n")
+	b.WriteString("# these files hold that the migration reads past. What that means depends on which\n")
+	b.WriteString("# files were read, and the test that names this record says which.\n")
 	b.WriteString("#\n")
 	b.WriteString("# Read through the same source the migration reads, so this measures what that\n")
 	b.WriteString("# migration would actually see rather than what a struct's tags suggest.\n\n")
