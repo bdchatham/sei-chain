@@ -78,6 +78,7 @@ and `TestGuideListsEveryPrimitive` holds it to the exported surface.
 | `CheckSchemaMatchesTheReader` | a section whose keys are declared by a purpose-written struct pairs a key with the wrong setting, or resolves a baseline the reader does not | the reader itself, by writing a probe value under each key and observing which setting changed |
 | `CheckAbsentReadDivergences` | a key whose value changes for a node that has it missing, because its reader resolves an absent key to zero rather than to the default beside it | `testdata/<section>.absent.golden`, one row per key with both values |
 | `CheckDeclaredSurface` | a key added, removed, renamed or retyped, or a baseline changed, in any declared section | `testdata/<name>.surface.golden`, every section, key and per-mode baseline as text |
+| `CheckZeroWhenAbsentMatchesTheReader` | a migration writing a key's default where the node runs its zero, or the reverse | the reader itself, by writing each candidate and requiring the reader's output to be unchanged |
 | `CheckWiring` | one of the calls above is deleted | `testdata/wiring_coverage.txt` |
 | `CheckExperimentalDeclarations` | a declaration whose name or metadata is refused reaches a binary, where it is inert and every read of it silently returns the default | the registry, and each declaration's own `Check` run against its own default |
 | `CheckExperimentalGolden` | a key is added, removed, renamed, re-typed, re-owned or re-defaulted without the change being visible | `testdata/<name>.experimental.golden`, keyed by name |
@@ -100,6 +101,14 @@ forbidden move 4 above.
 declared defaults, because some readers fill fields from outside the config.
 `CheckAbsent` is what ties that result to the declared defaults, so a section wired for
 rows and not for `CheckAbsent` has an unanchored baseline.
+
+A check's section argument has to be a string literal, and `CheckWiring` refuses the package when it
+is not. A constant does not resolve, and neither does a table's loop variable: every such call
+collapses to one row, so deleting any of them leaves the record unchanged and stops protecting the
+rest. The placeholder that used to stand in for those was also hiding a section spelled two ways in
+one package, which is the sort of thing this record exists to make visible. A check that covers the
+package rather than a section is named in `packageWide` and records under `(package)`, which is a
+different thing from a section this cannot read.
 
 `CheckSchemaMatchesTheReader` covers a case the others cannot. A section normally declares
 its keys from the type its reader fills, so the tags and the reader move together. Some
