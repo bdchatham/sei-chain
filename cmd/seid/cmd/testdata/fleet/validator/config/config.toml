@@ -1,0 +1,134 @@
+abci = 'socket'
+db-backend = 'goleveldb'
+db-dir = 'data'
+filter-peers = false
+genesis-file = 'config/genesis.json'
+log-format = 'plain'
+log-level = 'error'
+mode = 'validator'
+moniker = 'validator-0-0-0'
+node-key-file = 'config/node_key.json'
+proxy-app = 'tcp://127.0.0.1:26658'
+
+[consensus]
+create-empty-blocks = true
+create-empty-blocks-interval = '0s'
+double-sign-check-height = 0
+gossip-tx-key-only = true
+peer-gossip-sleep-duration = '100ms'
+peer-query-maj23-sleep-duration = '2s'
+unsafe-commit-timeout-override = '0s'
+unsafe-propose-timeout-delta-override = '0s'
+unsafe-propose-timeout-override = '0s'
+unsafe-vote-timeout-delta-override = '0s'
+unsafe-vote-timeout-override = '0s'
+wal-file = 'data/cs.wal/wal'
+
+[instrumentation]
+max-open-connections = 3
+namespace = 'tendermint'
+prometheus = true
+prometheus-listen-addr = ':26660'
+
+[mempool]
+broadcast = true
+cache-size = 10000
+check-tx-error-blacklist-enabled = true
+check-tx-error-threshold = 50
+drop-priority-reservoir-size = 10240
+drop-priority-threshold = 0.1
+drop-utilisation-threshold = 1.0
+duplicate-txs-cache-size = 100000
+keep-invalid-txs-in-cache = false
+max-batch-bytes = 0
+max-pending-txs-bytes = 1073741824
+max-tx-bytes = 1048576
+max-txs-bytes = 1073741824
+pending-size = 5000
+pending-ttl-duration = '0s'
+pending-ttl-num-blocks = 0
+remove-expired-txs-from-queue = true
+size = 5000
+ttl-duration = '5s'
+ttl-num-blocks = 10
+tx-notify-threshold = 0
+
+[p2p]
+allow-duplicate-ip = false
+blocksync-peers = ''
+bootstrap-peers = ''
+dial-interval = '10s'
+dial-timeout = '3s'
+external-address = 'this-node.invalid:26656'
+flush-throttle-timeout = '100ms'
+handshake-timeout = '10s'
+laddr = 'tcp://0.0.0.0:26656'
+max-connections = 100
+max-incoming-connection-attempts = 100
+max-packet-msg-payload-size = 1000000
+persistent-peers = '0000000000000000000000000000000000000001@peer-a.invalid:26656,0000000000000000000000000000000000000002@peer-b.invalid:26656,0000000000000000000000000000000000000003@peer-c.invalid:26656'
+pex = true
+private-peer-ids = ''
+queue-type = 'simple-priority'
+recv-rate = 20971520
+send-rate = 20971520
+unconditional-peer-ids = ''
+upnp = false
+
+[priv-validator]
+client-certificate-file = ''
+client-key-file = ''
+key-file = 'config/priv_validator_key.json'
+laddr = ''
+root-ca-file = ''
+state-file = 'data/priv_validator_state.json'
+
+[rpc]
+cors-allowed-headers = ['Origin', 'Accept', 'Content-Type', 'X-Requested-With', 'X-Server-Time']
+cors-allowed-methods = ['HEAD', 'GET', 'POST']
+cors-allowed-origins = []
+event-log-max-items = 0
+event-log-window-size = '30s'
+experimental-disable-websocket = false
+laddr = 'tcp://0.0.0.0:26657'
+lag-threshold = 300
+max-body-bytes = 1000000
+max-header-bytes = 1048576
+max-open-connections = 900
+max-subscription-clients = 100
+max-subscriptions-per-client = 5
+pprof-laddr = ''
+timeout-broadcast-tx-commit = '10s'
+timeout-read = '10s'
+tls-cert-file = ''
+tls-key-file = ''
+unsafe = false
+
+[self-remediation]
+blocks-behind-check-interval = 60
+blocks-behind-threshold = 0
+p2p-no-peers-available-window-seconds = 0
+restart-cooldown-seconds = 600
+statesync-no-peers-available-window-seconds = 0
+
+[statesync]
+backfill-blocks = 0
+backfill-duration = '0s'
+blacklist-ttl = '5m0s'
+chunk-request-timeout = '15s'
+discovery-time = '15s'
+enable = true
+fetchers = 2
+light-block-response-timeout = '10s'
+rpc-servers = 'sync-a.invalid:80,sync-b.invalid:80'
+temp-dir = ''
+trust-hash = 'AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA'
+trust-height = 166124592
+trust-period = '9999h0m0s'
+use-local-snapshot = false
+use-p2p = false
+verify-light-block-timeout = '1m0s'
+
+[tx-index]
+indexer = ['null']
+psql-conn = ''

@@ -30,6 +30,14 @@ func (e existing) AllKeys() []string {
 // noEnv is an environment with nothing set.
 func noEnv(string) (string, bool) { return "", false }
 
+// from is a node whose configuration comes only from its files.
+//
+// No flag layer and no environment, so a test using it exercises what adoption does with a file value
+// and with a key nothing supplies. The flag layer has its own tests.
+func from(files existing) configcli.Existing {
+	return configcli.Existing{Files: files, LookupEnv: noEnv}
+}
+
 // TestAdoptionKeepsWhatTheNodeWasRunning is the property that separates adopting from generating.
 //
 // A node that has been running has values somebody chose. Building the file from this binary's
@@ -44,7 +52,7 @@ func TestAdoptionKeepsWhatTheNodeWasRunning(t *testing.T) {
 		"probe.timeout": "5m",
 	}
 
-	got, err := configcli.Adopt(current, noEnv, registry.ModeValidator)
+	got, err := configcli.Adopt(from(current), registry.ModeValidator)
 	if err != nil {
 		t.Fatalf("Adopt: %v", err)
 	}
@@ -78,7 +86,7 @@ func TestAdoptionKeepsWhatTheNodeWasRunning(t *testing.T) {
 func TestAdoptionStillWritesTheKeysTheOldConfigurationLacked(t *testing.T) {
 	registerTyped(t)
 
-	got, err := configcli.Adopt(existing{"probe.workers": 64}, noEnv, registry.ModeValidator)
+	got, err := configcli.Adopt(from(existing{"probe.workers": 64}), registry.ModeValidator)
 	if err != nil {
 		t.Fatalf("Adopt: %v", err)
 	}
@@ -98,8 +106,12 @@ func TestAdoptionStillWritesTheKeysTheOldConfigurationLacked(t *testing.T) {
 	if len(got.Carried) != 1 || got.Carried[0] != "probe.workers" {
 		t.Errorf("carried %v, want only the one key the old configuration held", got.Carried)
 	}
-	if len(got.Baselined) != len(registry.Keys())-1 {
-		t.Errorf("reported %d baselined keys, want %d", len(got.Baselined), len(registry.Keys())-1)
+	if len(got.Unsupplied) != len(registry.Keys())-1 {
+		t.Errorf("reported %d unsupplied keys, want %d", len(got.Unsupplied), len(registry.Keys())-1)
+	}
+	if len(got.FromFlagDefault) != 0 {
+		t.Errorf("reported %v as coming from a flag default with no flag layer supplied",
+			got.FromFlagDefault)
 	}
 	assertEveryKeyAccountedFor(t, got)
 	// Doctor accepts it, or adoption would hand an operator a file the same tool refuses.
@@ -124,7 +136,8 @@ func TestAnEnvironmentSuppliedValueIsReportedAndNotWritten(t *testing.T) {
 		return "", false
 	}
 
-	got, err := configcli.Adopt(existing{"probe.endpoint": "sei:8545"}, lookup, registry.ModeValidator)
+	node := configcli.Existing{Files: existing{"probe.endpoint": "sei:8545"}, LookupEnv: lookup}
+	got, err := configcli.Adopt(node, registry.ModeValidator)
 	if err != nil {
 		t.Fatalf("Adopt: %v", err)
 	}
@@ -132,14 +145,14 @@ func TestAnEnvironmentSuppliedValueIsReportedAndNotWritten(t *testing.T) {
 	if len(got.Environment) != 1 || got.Environment[0] != "probe.workers" {
 		t.Errorf("reported %v as environment-supplied, want probe.workers", got.Environment)
 	}
-	// The key is reported as environment-supplied and as taking the baseline, never as carried: no
-	// value for it came out of the existing files. Environment may legitimately overlap with carried
-	// when a variable and a file both hold a key, which is why the invariant below is the one that
-	// has to hold rather than a rule about Environment alone.
+	// The key is reported as environment-supplied and as unsupplied, never as carried: no value for it
+	// came out of the existing files. Environment may legitimately overlap with carried when a variable
+	// and a file both hold a key, which is why the invariant below is the one that has to hold rather
+	// than a rule about Environment alone.
 	if holdsKey(got.Carried, "probe.workers") {
 		t.Errorf("probe.workers is reported as carried over, but its value came from a variable and "+
 			"was not written. The counts an operator reads would then include a value that is not in "+
-			"the file. Carried=%v Baselined=%v", got.Carried, got.Baselined)
+			"the file. Carried=%v Unsupplied=%v", got.Carried, got.Unsupplied)
 	}
 	assertEveryKeyAccountedFor(t, got)
 	written, err := got.File.Values()
@@ -182,7 +195,7 @@ func TestAValueThatCannotBeReadKeepsTheBaselineAndIsReported(t *testing.T) {
 		"probe.peers":   []any{1, 2}, // a list that is not text
 	}
 
-	got, err := configcli.Adopt(current, noEnv, registry.ModeValidator)
+	got, err := configcli.Adopt(from(current), registry.ModeValidator)
 	if err != nil {
 		t.Fatalf("Adopt: %v", err)
 	}
@@ -228,7 +241,7 @@ func TestAdoptionReadsAValueWhoseTypeTheOldFileGotRight(t *testing.T) {
 		"probe.enabled":  false,           //
 	}
 
-	got, err := configcli.Adopt(current, noEnv, registry.ModeValidator)
+	got, err := configcli.Adopt(from(current), registry.ModeValidator)
 	if err != nil {
 		t.Fatalf("Adopt: %v", err)
 	}
@@ -266,11 +279,11 @@ func TestAdoptionFollowsTheModeForTheKeysItCannotCarry(t *testing.T) {
 	registerTyped(t)
 	current := existing{"probe.workers": 64} // enabled is left to the baseline, and it varies by mode
 
-	validator, err := configcli.Adopt(current, noEnv, registry.ModeValidator)
+	validator, err := configcli.Adopt(from(current), registry.ModeValidator)
 	if err != nil {
 		t.Fatalf("Adopt(validator): %v", err)
 	}
-	archive, err := configcli.Adopt(current, noEnv, registry.ModeArchive)
+	archive, err := configcli.Adopt(from(current), registry.ModeArchive)
 	if err != nil {
 		t.Fatalf("Adopt(archive): %v", err)
 	}
@@ -281,7 +294,7 @@ func TestAdoptionFollowsTheModeForTheKeysItCannotCarry(t *testing.T) {
 		t.Errorf("both modes baselined probe.enabled to %#v for a key whose baseline varies by mode, "+
 			"so the mode never reached the baselines", v["probe.enabled"])
 	}
-	if _, err := configcli.Adopt(current, noEnv, registry.Mode("archival")); err == nil {
+	if _, err := configcli.Adopt(from(current), registry.Mode("archival")); err == nil {
 		t.Error("Adopt accepted a mode no node runs")
 	}
 }
@@ -290,13 +303,13 @@ func TestAdoptionFollowsTheModeForTheKeysItCannotCarry(t *testing.T) {
 func TestAdoptionRefusesWithNothingToAdoptFrom(t *testing.T) {
 	registerTyped(t)
 
-	if _, err := configcli.Adopt(nil, noEnv, registry.ModeValidator); err == nil {
+	if _, err := configcli.Adopt(configcli.Existing{LookupEnv: noEnv}, registry.ModeValidator); err == nil {
 		t.Error("Adopt accepted a nil source, which would produce a file of pure baselines while " +
 			"reporting that a node's configuration had been carried over")
 	}
 
 	registry.Reset()
-	if _, err := configcli.Adopt(existing{}, noEnv, registry.ModeValidator); err == nil {
+	if _, err := configcli.Adopt(from(existing{}), registry.ModeValidator); err == nil {
 		t.Error("Adopt produced a file from an empty registry")
 	}
 }
@@ -306,11 +319,11 @@ func TestAdoptionIsByteStable(t *testing.T) {
 	registerTyped(t)
 	current := existing{"probe.workers": 64, "probe.endpoint": "sei:8545"}
 
-	first, err := configcli.Adopt(current, noEnv, registry.ModeValidator)
+	first, err := configcli.Adopt(from(current), registry.ModeValidator)
 	if err != nil {
 		t.Fatalf("Adopt: %v", err)
 	}
-	second, err := configcli.Adopt(current, noEnv, registry.ModeValidator)
+	second, err := configcli.Adopt(from(current), registry.ModeValidator)
 	if err != nil {
 		t.Fatalf("Adopt: %v", err)
 	}
@@ -340,11 +353,11 @@ func TestAdoptedAndGeneratedFilesDifferWhereTheNodeDoes(t *testing.T) {
 	registerTyped(t)
 	current := existing{"probe.workers": 64}
 
-	adopted, err := configcli.Adopt(current, noEnv, registry.ModeValidator)
+	adopted, err := configcli.Adopt(from(current), registry.ModeValidator)
 	if err != nil {
 		t.Fatalf("Adopt: %v", err)
 	}
-	generated, err := configcli.Generate(registry.ModeValidator)
+	generated, err := configcli.Generate(registry.ModeValidator, "probe-node")
 	if err != nil {
 		t.Fatalf("Generate: %v", err)
 	}
@@ -396,7 +409,7 @@ func sameRead(a, b any) bool {
 func TestAdoptionCarriesADurationTheOldFileWroteAsText(t *testing.T) {
 	registerTyped(t)
 
-	got, err := configcli.Adopt(existing{"probe.timeout": "2h45m"}, noEnv, registry.ModeValidator)
+	got, err := configcli.Adopt(from(existing{"probe.timeout": "2h45m"}), registry.ModeValidator)
 	if err != nil {
 		t.Fatalf("Adopt: %v", err)
 	}
@@ -406,7 +419,7 @@ func TestAdoptionCarriesADurationTheOldFileWroteAsText(t *testing.T) {
 		t.Errorf("the duration adopted as %#v, want 2h45m0s", written["probe.timeout"])
 	}
 	// And the same value as a bare number is refused rather than read as nanoseconds.
-	refused, err := configcli.Adopt(existing{"probe.timeout": 9900}, noEnv, registry.ModeValidator)
+	refused, err := configcli.Adopt(from(existing{"probe.timeout": 9900}), registry.ModeValidator)
 	if err != nil {
 		t.Fatalf("Adopt: %v", err)
 	}
@@ -422,28 +435,30 @@ func TestAdoptionCarriesADurationTheOldFileWroteAsText(t *testing.T) {
 
 // assertEveryKeyAccountedFor holds the invariant the reported counts depend on.
 //
-// Every declared key is written exactly once, so it either carried a value over or took the
-// baseline, never both and never neither. A key in both lists inflates what an operator is told was
-// preserved; a key in neither hides a value that changed.
+// Every declared key is written exactly once, so exactly one layer answered for it: its files, a bound
+// flag's default, or nothing at all. A key in two lists inflates what an operator is told was
+// preserved; a key in none hides a value that changed.
 func assertEveryKeyAccountedFor(t *testing.T, got configcli.Adoption) {
 	t.Helper()
 
 	seen := map[string]int{}
-	for _, k := range got.Carried {
-		seen[k]++
+	for _, list := range [][]string{got.Carried, got.FromFlagDefault, got.Unsupplied} {
+		for _, k := range list {
+			seen[k]++
+		}
 	}
-	for _, k := range got.Baselined {
-		seen[k]++
+	for _, r := range got.Unconvertible {
+		seen[r.Key]++
 	}
 	for _, key := range registry.Keys() {
 		switch seen[key] {
 		case 1:
 		case 0:
-			t.Errorf("%s is reported as neither carried nor baselined, so a value that changed is "+
-				"invisible in the report", key)
+			t.Errorf("%s is reported by no layer, so a value that changed is invisible in the report",
+				key)
 		default:
-			t.Errorf("%s is reported %d times across carried and baselined, which inflates what an "+
-				"operator is told was preserved", key, seen[key])
+			t.Errorf("%s is reported %d times across the layers, which inflates what an operator is "+
+				"told was preserved", key, seen[key])
 		}
 		delete(seen, key)
 	}
@@ -495,11 +510,11 @@ func TestAdoptionWritesARootKeyWhereItCanBeReadBack(t *testing.T) {
 		t.Fatalf("registration was refused: %v", d.Err)
 	}
 
-	got, err := configcli.Adopt(existing{
+	got, err := configcli.Adopt(from(existing{
 		"pruning":             "custom",
 		"concurrency-workers": 8,
 		"probe.enabled":       true,
-	}, noEnv, registry.ModeValidator)
+	}), registry.ModeValidator)
 	if err != nil {
 		t.Fatalf("Adopt: %v", err)
 	}

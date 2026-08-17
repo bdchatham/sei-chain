@@ -8,6 +8,10 @@
 
 (package)	CheckExperimentalDeclarations
 experimental	CheckExperimentalGolden
+fleet_rpc	CheckLegacyKeysAreDeclared
+fleet_seed	CheckLegacyKeysAreDeclared
+fleet_validator	CheckLegacyKeysAreDeclared
+legacy_keyspace	CheckLegacyKeysAreDeclared
 newapp	CheckObservedKeys
 state-sync	CheckKeyNames
 tendermint	CheckKeyNames

@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/sei-protocol/sei-chain/config/registry"
+	srvconfig "github.com/sei-protocol/sei-chain/sei-cosmos/server/config"
 	"github.com/sei-protocol/sei-chain/sei-db/config"
 )
 
@@ -15,16 +16,23 @@ const (
 	StateCommitSectionName     = "state-commit"
 )
 
-// genesisSchema declares the keys the genesis import reader resolves.
+// genesisSchema declares the keys the [genesis] table carries.
 //
-// A schema and not a transport: nothing decodes into it. The type the reader fills is
+// A schema and not a transport: nothing decodes into it. The type the import reader fills is
 // genesistypes.GenesisImportConfig, which carries no mapstructure tags at all, so no key can be
 // derived from it, and it lives in a tree this repository does not change. Declaring the spelling here
 // is what lets the registry name the keys the reader looks up. Nothing keeps the two together by
 // construction, so a test writes a value under each key and asks the reader which setting it reached.
+//
+// Two readers share this table and they do not share every key. ReadGenesisImportConfig resolves
+// stream-import and import-file. srvconfig.GetConfig resolves stream-import and genesis-stream-file,
+// and server.start streams the genesis file named by the second. So genesis-stream-file is declared
+// here, in a sei package, because a table has one section and this is the one that owns it.
 type genesisSchema struct {
 	StreamImport bool   `mapstructure:"stream-import"`
 	ImportFile   string `mapstructure:"import-file"`
+	// GenesisStreamFile is read by srvconfig.GetConfig, not by ReadGenesisImportConfig.
+	GenesisStreamFile string `mapstructure:"genesis-stream-file"`
 }
 
 // Registration puts this package's configuration sections in the registry.
@@ -67,8 +75,9 @@ func lightInvarianceBaseline(registry.Mode) any { return DefaultLightInvarianceC
 // mode implies it.
 func genesisBaseline(registry.Mode) any {
 	return genesisSchema{
-		StreamImport: DefaultGenesisConfig.StreamGenesisImport,
-		ImportFile:   DefaultGenesisConfig.GenesisStreamFile,
+		StreamImport:      DefaultGenesisConfig.StreamGenesisImport,
+		ImportFile:        DefaultGenesisConfig.GenesisStreamFile,
+		GenesisStreamFile: srvconfig.DefaultConfig().Genesis.GenesisStreamFile,
 	}
 }
 
@@ -107,27 +116,28 @@ type stateStoreSchema struct {
 // every field straight from a lookup with no check that the key was present, so an absent key resolves
 // to zero and clobbers the default beside it: the store reads as disabled, with no backend, keeping
 // every version, and committing synchronously. A node whose app.toml predates one of these keys runs
-// the clobbered value today and runs the declared default once this section is declared.
-// testdata/state-store.absent.golden is the record of exactly which keys that is, and guarding the
-// reads in parseSSConfigs is what empties it.
+// the clobbered value today and runs the declared default once this section is declared. The
+// DeclareZeroWhenAbsent call above names exactly which keys those are, so a migration writes the value
+// such a node runs rather than this baseline. Guarding a read in parseSSConfigs is what takes its key
+// off that list.
 //
 // The same values for every mode. How much history a node keeps is an operator's decision about disk,
 // and the modes do not imply one; an archive node's intent is expressed by keeping everything, which is
 // a value it writes rather than a default it inherits.
 func stateStoreBaseline(registry.Mode) any {
-	live := config.DefaultStateStoreConfig()
+	defaults := config.DefaultStateStoreConfig()
 	return stateStoreSchema{
-		Enable:                 live.Enable,
-		DBDirectory:            live.DBDirectory,
-		Backend:                live.Backend,
-		AsyncWriteBuffer:       live.AsyncWriteBuffer,
-		KeepRecent:             live.KeepRecent,
-		PruneIntervalSeconds:   live.PruneIntervalSeconds,
-		ImportNumWorkers:       live.ImportNumWorkers,
-		EnableReadWriteMetrics: live.EnableReadWriteMetrics,
-		EVMDBDirectory:         live.EVMDBDirectory,
-		SeparateEVMSubDBs:      live.SeparateEVMSubDBs,
-		EVMSplit:               live.EVMSplit,
+		Enable:                 defaults.Enable,
+		DBDirectory:            defaults.DBDirectory,
+		Backend:                defaults.Backend,
+		AsyncWriteBuffer:       defaults.AsyncWriteBuffer,
+		KeepRecent:             defaults.KeepRecent,
+		PruneIntervalSeconds:   defaults.PruneIntervalSeconds,
+		ImportNumWorkers:       defaults.ImportNumWorkers,
+		EnableReadWriteMetrics: defaults.EnableReadWriteMetrics,
+		EVMDBDirectory:         defaults.EVMDBDirectory,
+		SeparateEVMSubDBs:      defaults.SeparateEVMSubDBs,
+		EVMSplit:               defaults.EVMSplit,
 	}
 }
 
@@ -193,8 +203,9 @@ func (s stateCommitSchema) Validate() error {
 //
 // The declared defaults, which is what seid init writes into app.toml. Eighteen of the twenty reads in
 // parseSCConfigs already check that the key was present, so for those the declared default is also what
-// an absent key resolves to today. The two that do not are sc-enable and sc-directory, and
-// testdata/state-commit.absent.golden records what changes for a node missing either.
+// an absent key resolves to today. The two that do not are sc-enable and sc-directory. Only sc-enable is
+// declared as resolving to its zero, because the directory's declared default is already the empty
+// string, so for that one key the clobbered value and the default are the same thing.
 //
 // sc-enable is the one that matters. An absent key reads as false, and SetupSeiDB stops the node when
 // state commitment is off, so no running node has that key missing. Resolving it to true is what every
@@ -203,29 +214,29 @@ func (s stateCommitSchema) Validate() error {
 // The same values for every mode. How often a node snapshots and how much proof history it serves are
 // decisions about disk and load that an operator writes down.
 func stateCommitBaseline(registry.Mode) any {
-	live := config.DefaultStateCommitConfig()
+	defaults := config.DefaultStateCommitConfig()
 	return stateCommitSchema{
-		Enable:                     live.Enable,
-		Directory:                  live.Directory,
-		AsyncCommitBuffer:          live.MemIAVLConfig.AsyncCommitBuffer,
-		SnapshotKeepRecent:         live.MemIAVLConfig.SnapshotKeepRecent,
-		SnapshotInterval:           live.MemIAVLConfig.SnapshotInterval,
-		SnapshotMinTimeInterval:    live.MemIAVLConfig.SnapshotMinTimeInterval,
-		SnapshotWriterLimit:        live.MemIAVLConfig.SnapshotWriterLimit,
-		SnapshotPrefetchThreshold:  live.MemIAVLConfig.SnapshotPrefetchThreshold,
-		SnapshotWriteRateMBps:      live.MemIAVLConfig.SnapshotWriteRateMBps,
-		HistoricalProofMaxInFlight: live.HistoricalProofMaxInFlight,
-		HistoricalProofRateLimit:   live.HistoricalProofRateLimit,
-		HistoricalProofBurst:       live.HistoricalProofBurst,
-		WriteMode:                  string(live.WriteMode),
-		WriteModeEnableAuto:        live.WriteModeEnableAuto,
-		HashLoggerEnable:           live.HashLogger.Enable,
-		HashLoggerDirectory:        live.HashLogger.Directory,
-		HashLoggerBlocksToRetain:   live.HashLogger.BlocksToRetain,
-		HashLoggerTargetFileSize:   live.HashLogger.TargetFileSize,
-		HashLoggerMaxDiskSize:      live.HashLogger.MaxDiskSize,
+		Enable:                     defaults.Enable,
+		Directory:                  defaults.Directory,
+		AsyncCommitBuffer:          defaults.MemIAVLConfig.AsyncCommitBuffer,
+		SnapshotKeepRecent:         defaults.MemIAVLConfig.SnapshotKeepRecent,
+		SnapshotInterval:           defaults.MemIAVLConfig.SnapshotInterval,
+		SnapshotMinTimeInterval:    defaults.MemIAVLConfig.SnapshotMinTimeInterval,
+		SnapshotWriterLimit:        defaults.MemIAVLConfig.SnapshotWriterLimit,
+		SnapshotPrefetchThreshold:  defaults.MemIAVLConfig.SnapshotPrefetchThreshold,
+		SnapshotWriteRateMBps:      defaults.MemIAVLConfig.SnapshotWriteRateMBps,
+		HistoricalProofMaxInFlight: defaults.HistoricalProofMaxInFlight,
+		HistoricalProofRateLimit:   defaults.HistoricalProofRateLimit,
+		HistoricalProofBurst:       defaults.HistoricalProofBurst,
+		WriteMode:                  string(defaults.WriteMode),
+		WriteModeEnableAuto:        defaults.WriteModeEnableAuto,
+		HashLoggerEnable:           defaults.HashLogger.Enable,
+		HashLoggerDirectory:        defaults.HashLogger.Directory,
+		HashLoggerBlocksToRetain:   defaults.HashLogger.BlocksToRetain,
+		HashLoggerTargetFileSize:   defaults.HashLogger.TargetFileSize,
+		HashLoggerMaxDiskSize:      defaults.HashLogger.MaxDiskSize,
 		FlatKV: stateCommitFlatKVSchema{
-			EnableReadWriteMetrics: live.FlatKVConfig.EnableReadWriteMetrics,
+			EnableReadWriteMetrics: defaults.FlatKVConfig.EnableReadWriteMetrics,
 		},
 	}
 }

@@ -75,9 +75,9 @@ and `TestGuideListsEveryPrimitive` holds it to the exported surface.
 | `CheckAbsent` | an omitted key resolves to something other than the declared default | the declared defaults struct |
 | `CheckManifestCoversEveryField` | a resolved field no row claims | the manifest's `Path` and `AlsoWrites` entries |
 | `CheckEveryRowHasADiscriminatingSeed` | a row whose every seed would also pass against a reader that never looks its key up | the recorded seed corpus |
-| `CheckSchemaMatchesTheReader` | a section whose keys are declared by a purpose-written struct pairs a key with the wrong setting, or resolves a baseline the reader does not | the reader itself, by writing a probe value under each key and observing which setting changed |
-| `CheckAbsentReadDivergences` | a key whose value changes for a node that has it missing, because its reader resolves an absent key to zero rather than to the default beside it | `testdata/<section>.absent.golden`, one row per key with both values |
+| `CheckSchemaMatchesTheReader` | a section whose keys are declared by a purpose-written struct pairs a key with the wrong setting | the reader itself, by writing a probe value under each key and observing which setting changed |
 | `CheckDeclaredSurface` | a key added, removed, renamed or retyped, or a baseline changed, in any declared section | `testdata/<name>.surface.golden`, every section, key and per-mode baseline as text |
+| `CheckLegacyKeysAreDeclared` | a key an operator's app.toml or config.toml can carry that no section declares, so a migration reads past it and the new file loses a value they chose | `testdata/<name>.legacy.golden`, one line per key, empty when the migration can carry everything |
 | `CheckZeroWhenAbsentMatchesTheReader` | a migration writing a key's default where the node runs its zero, or the reverse | the reader itself, by writing each candidate and requiring the reader's output to be unchanged |
 | `CheckWiring` | one of the calls above is deleted | `testdata/wiring_coverage.txt` |
 | `CheckExperimentalDeclarations` | a declaration whose name or metadata is refused reaches a binary, where it is inert and every read of it silently returns the default | the registry, and each declaration's own `Check` run against its own default |
@@ -119,12 +119,16 @@ decodes into it.
 
 What then needs holding is which setting each key reaches, and stating that twice proves
 nothing, since both statements come from one reading. So this check asks the reader: it
-writes a probe value under a key, sees which field of the reader's output changed, and
-compares the section's baseline for that key against what the reader leaves that same field
-at when nothing is written. A schema field paired with the wrong setting fails here rather
-than resolving one operator's value into another's setting. The probe has to differ from the
-baseline, or the reader's output is identical either way and the check holds for a key
-nothing reads; the check refuses a probe that does not.
+writes a probe value under a key and requires exactly one field of the reader's output to
+change. A schema field paired with the wrong setting fails here rather than resolving one
+operator's value into another's setting. The probe has to differ from what the reader
+produces for an empty configuration, or the output is identical either way and the check
+holds for a key nothing reads; the check refuses a probe that does not.
+
+What such a key resolves to when nothing supplies it is a separate question, and
+`CheckZeroWhenAbsentMatchesTheReader` answers it against the same reader. Keep the two
+apart: this one says a key reaches a setting, that one says what the setting holds for a
+node whose file is silent.
 
 **Before adding one.** Advancing coverage is normally wiring an existing check to another
 section, and that is the first thing to try. A new check earns its place by naming a

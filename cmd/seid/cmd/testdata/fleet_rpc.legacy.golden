@@ -1,0 +1,22 @@
+# Keys these configuration files carry that no section declares. Regenerate with
+# -update.
+#
+# A migration builds sei.toml from the declared keys, so every line here is a value
+# these files hold that the migration reads past. What that means depends on which
+# files were read, and the test that names this record says which.
+#
+# Read through the same source the migration reads, so this measures what that
+# migration would actually see rather than what a struct's tags suggest.
+
+abci
+eth_block_test.eth_block_test_enabled
+eth_block_test.eth_block_test_test_data_path
+filter-peers
+iavl-disable-fastnode
+receipt-store.keep-recent
+receipt-store.tx-index-backend
+sei.mode
+sei.version
+state-store.ss-evm-db-directory
+state-store.ss-keep-last-version
+state-store.ss-use-default-comparer

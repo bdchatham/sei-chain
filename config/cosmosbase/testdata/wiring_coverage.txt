@@ -12,6 +12,10 @@ base	CheckSchemaMatchesTheReader
 base	CheckZeroWhenAbsentMatchesTheReader
 grpc	CheckSchemaMatchesTheReader
 grpc	CheckZeroWhenAbsentMatchesTheReader
+grpc-web	CheckSchemaMatchesTheReader
+grpc-web	CheckZeroWhenAbsentMatchesTheReader
+rosetta	CheckSchemaMatchesTheReader
+rosetta	CheckZeroWhenAbsentMatchesTheReader
 state-sync	CheckNoExperimentalKeyShadowsThisSection
 state-sync	CheckZeroWhenAbsentMatchesTheReader
 telemetry	CheckSchemaMatchesTheReader

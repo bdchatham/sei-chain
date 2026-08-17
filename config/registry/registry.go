@@ -103,15 +103,85 @@ func RegisterRootKeys(name string, proto any, defaults func(Mode) any) {
 	record(name, "", proto, defaults)
 }
 
+// RegisterSectionExcluding registers a section whose struct carries fields that are not configuration.
+//
+// A section normally declares every key its struct's tags produce, which is what keeps the declared
+// spelling and the reader's the same string. A few upstream structs carry a tagged field the operator
+// does not write and must not be given: the root directory is the one that matters, tagged home on five
+// Tendermint sub-structs and written by Config.SetRoot after the file is decoded. Declaring it would put
+// it in an operator's file at its default, which is empty, and delivering that would leave a node unable
+// to find its own data directory.
+//
+// Each exclusion carries the reason it is not configuration, and a name for a key the struct does not
+// produce is refused: a stale exclusion silently stops covering the field it was written for.
+func RegisterSectionExcluding(name string, proto any, defaults func(Mode) any, notConfig map[string]string) {
+	registerExcluding(name, name, proto, defaults, notConfig)
+}
+
+// RegisterRootKeysExcluding is RegisterSectionExcluding for a section whose keys sit at the root of the
+// file, with no section of their own.
+func RegisterRootKeysExcluding(name string, proto any, defaults func(Mode) any, notConfig map[string]string) {
+	registerExcluding(name, "", proto, defaults, notConfig)
+}
+
+// registerExcluding is the one path both exclusion-aware registrations take.
+func registerExcluding(name, prefix string, proto any, defaults func(Mode) any, notConfig map[string]string) {
+	all, err := deriveKeys(name, prefix, proto)
+	if err != nil {
+		mu.Lock()
+		defects = append(defects, Defect{Section: name, Err: err})
+		mu.Unlock()
+		return
+	}
+	produced := map[string]bool{}
+	for _, key := range all {
+		produced[key] = true
+	}
+
+	mu.Lock()
+	for key, why := range notConfig {
+		switch {
+		case !produced[key]:
+			defects = append(defects, Defect{Section: name, Err: fmt.Errorf(
+				"excludes %q and the section's struct does not produce it; an exclusion that covers "+
+					"nothing reads as though the field it named had been dealt with", key)})
+		case why == "":
+			defects = append(defects, Defect{Section: name, Err: fmt.Errorf(
+				"excludes %q with no reason; without one it cannot be told from a key somebody found "+
+					"inconvenient", key)})
+		}
+	}
+	mu.Unlock()
+
+	kept := make([]string, 0, len(all))
+	for _, key := range all {
+		if _, excluded := notConfig[key]; !excluded {
+			kept = append(kept, key)
+		}
+	}
+	recordKeys(name, prefix, kept, proto, defaults)
+}
+
 // record is the one path both registrations take.
 func record(name, prefix string, proto any, defaults func(Mode) any) {
 	keys, err := deriveKeys(name, prefix, proto)
+	if err != nil {
+		mu.Lock()
+		defects = append(defects, Defect{Section: name, Err: err})
+		mu.Unlock()
+		return
+	}
+	recordKeys(name, prefix, keys, proto, defaults)
+}
 
+// recordKeys registers a section from keys already derived, which is what lets one registration drop a
+// field the operator does not write without the other having to know that is possible.
+func recordKeys(name, prefix string, keys []string, proto any, defaults func(Mode) any) {
 	mu.Lock()
 	defer mu.Unlock()
 	switch {
-	case err != nil:
-		defects = append(defects, Defect{Section: name, Err: err})
+	case len(keys) == 0:
+		defects = append(defects, Defect{Section: name, Err: fmt.Errorf("declares no keys")})
 	case defaults == nil:
 		defects = append(defects, Defect{Section: name, Err: fmt.Errorf("no baseline function")})
 	default:
@@ -242,13 +312,40 @@ func Surface() string {
 		for _, k := range s.Keys {
 			fmt.Fprintf(&b, "key:%s\n", k)
 		}
-		// The baseline is part of the shape: a changed default is a changed contract for every
-		// node that never wrote the key. Rendered per mode, since a baseline may vary by mode.
+		// The baseline is part of the shape: a changed default is a changed contract for every node
+		// that never wrote the key. Rendered per mode, since a baseline may vary by mode, and per key
+		// rather than as one dump of the section's struct, so a changed default is one changed line
+		// instead of one changed line four hundred characters wide.
 		for _, m := range Modes() {
-			fmt.Fprintf(&b, "default:%s:%s:%#v\n", s.Name, m, s.Defaults(m))
+			values, err := sectionValues(s.Name, s.Defaults(m))
+			if err != nil {
+				fmt.Fprintf(&b, "default:%s:%s:unreadable:%v\n", s.Name, m, err)
+				continue
+			}
+			for _, k := range s.Keys {
+				fmt.Fprintf(&b, "default:%s:%s:%s:%s\n", s.Name, m, k, renderBaseline(k, values[k]))
+			}
 		}
 	}
 	return b.String()
+}
+
+// hostDerivedMarker stands where a host-derived baseline's value would go.
+//
+// The value itself cannot be recorded: it is read off the machine that did the recording, so the record
+// would hold one host's processor count and fail on every other. What is recorded instead is that the
+// key has one, which still moves when a key stops or starts being derived.
+//
+// The cost is that a change to the derivation is invisible here. The owning package's own test is what
+// covers that, by computing the same derivation and requiring the baseline to match it.
+const hostDerivedMarker = "<derived from the host>"
+
+// renderBaseline renders one key's baseline for the record.
+func renderBaseline(key string, value any) string {
+	if HostDerived(key) {
+		return hostDerivedMarker
+	}
+	return fmt.Sprintf("%#v", value)
 }
 
 // Fingerprint hashes every registration, so a key added, renamed or retyped changes it.
@@ -307,11 +404,11 @@ func walk(t reflect.Type, prefix string, keys *[]string) error {
 			continue
 		}
 
-		tag, squash, skip, err := tagOf(f, prefix)
+		tag, err := tagOf(f, prefix)
 		if err != nil {
 			return err
 		}
-		if skip {
+		if tag.DeclaresNoKey() || tag.Remains() {
 			continue
 		}
 
@@ -320,9 +417,7 @@ func walk(t reflect.Type, prefix string, keys *[]string) error {
 			ft = ft.Elem()
 		}
 
-		// A squashed field promotes its own fields to this level, which is how a section carries
-		// a shared base without adding a segment.
-		if squash {
+		if tag.Squashed() {
 			if ft.Kind() != reflect.Struct {
 				return fmt.Errorf("%s.%s is squashed but is a %s, not a struct", prefix, f.Name, ft.Kind())
 			}
@@ -332,7 +427,7 @@ func walk(t reflect.Type, prefix string, keys *[]string) error {
 			continue
 		}
 
-		path := join(prefix, tag)
+		path := join(prefix, tag.Segment())
 		if ft.Kind() == reflect.Struct && !isLeaf(ft) {
 			if err := walk(ft, path, keys); err != nil {
 				return err
@@ -352,44 +447,83 @@ func join(prefix, segment string) string {
 	return prefix + "." + segment
 }
 
-// tagOf returns a field's mapstructure name, or reports that the field cannot be addressed.
-func tagOf(f reflect.StructField, prefix string) (name string, squash, skip bool, err error) {
-	tag, ok := f.Tag.Lookup("mapstructure")
+// notFromConfig is the mapstructure name for a field no configuration populates.
+const notFromConfig = "-"
+
+// squashOption is the mapstructure option that promotes a field's own fields to the enclosing level.
+const squashOption = "squash"
+
+// remainOption is the mapstructure option for a field that collects every key nothing else claimed.
+//
+// Such a field declares no key of its own: it is a destination for keys, not one. Tendermint's BaseConfig
+// ends in one, which is why registering that type without this produces a field with an empty name.
+const remainOption = "remain"
+
+// fieldTag is what a field's mapstructure tag says about the key it declares.
+type fieldTag struct {
+	name   string
+	squash bool
+	remain bool
+}
+
+// Remains reports whether this field collects the keys nothing else claimed, and so declares none.
+func (t fieldTag) Remains() bool { return t.remain }
+
+// Segment is the key segment this field contributes.
+func (t fieldTag) Segment() string { return t.name }
+
+// Squashed reports whether this field's own keys belong at the enclosing level rather than under a
+// segment of their own. That is how a section carries a shared base without adding one.
+func (t fieldTag) Squashed() bool { return t.squash }
+
+// DeclaresNoKey reports whether no configuration populates this field, so it contributes no key.
+//
+// Treating one as a defect would refuse every struct that carries a value derived somewhere else,
+// which is most of them.
+func (t fieldTag) DeclaresNoKey() bool { return t.name == notFromConfig }
+
+// tagOf reads a field's mapstructure tag, or reports that the field cannot be addressed.
+func tagOf(f reflect.StructField, prefix string) (fieldTag, error) {
+	raw, ok := f.Tag.Lookup("mapstructure")
 	if !ok {
-		return "", false, false, fmt.Errorf("%s.%s has no mapstructure tag; a key derived from a field "+
+		return fieldTag{}, fmt.Errorf("%s.%s has no mapstructure tag; a key derived from a field "+
 			"name is a key no operator writes, which is how ninety-two legacy keys became "+
 			"unreachable through their tags", prefix, f.Name)
 	}
 
-	parts := strings.Split(tag, ",")
-	name = parts[0]
+	parts := strings.Split(raw, ",")
+	tag := fieldTag{name: parts[0]}
 	for _, opt := range parts[1:] {
-		if opt == "squash" {
-			squash = true
+		switch opt {
+		case squashOption:
+			tag.squash = true
+		case remainOption:
+			tag.remain = true
 		}
 	}
-	if squash {
-		if name != "" {
-			return "", false, false, fmt.Errorf("%s.%s is squashed and also names %q; one or the other",
-				prefix, f.Name, name)
+	if tag.Remains() {
+		return tag, nil
+	}
+
+	if tag.Squashed() {
+		if tag.name != "" {
+			return fieldTag{}, fmt.Errorf("%s.%s is squashed and also names %q; one or the other",
+				prefix, f.Name, tag.name)
 		}
-		return "", true, false, nil
+		return tag, nil
 	}
-	// A dash is how mapstructure says a field is not populated from configuration at all. Such a field
-	// has no key, so it contributes none, and treating it as a defect would refuse every struct that
-	// carries a value derived somewhere else.
-	if name == "-" {
-		return "", false, true, nil
+	if tag.DeclaresNoKey() {
+		return tag, nil
 	}
-	if name == "" {
-		return "", false, false, fmt.Errorf("%s.%s has an empty mapstructure name", prefix, f.Name)
+	if tag.name == "" {
+		return fieldTag{}, fmt.Errorf("%s.%s has an empty mapstructure name", prefix, f.Name)
 	}
-	if name != strings.ToLower(name) {
-		return "", false, false, fmt.Errorf("%s.%s names %q, which is not lower case; a configuration "+
+	if tag.name != strings.ToLower(tag.name) {
+		return fieldTag{}, fmt.Errorf("%s.%s names %q, which is not lower case; a configuration "+
 			"source enumerates lower-cased, so this key would never match a written one",
-			prefix, f.Name, name)
+			prefix, f.Name, tag.name)
 	}
-	return name, false, false, nil
+	return tag, nil
 }
 
 // isLeaf reports whether a struct type is a value rather than a group of keys.
@@ -414,6 +548,8 @@ func Reset() {
 	envCannotDeliver = map[string]string{}
 	zeroWhenAbsent = map[string]bool{}
 	valueWhenAbsent = map[string]any{}
+	hostDerived = map[string]string{}
+	decodedNotLookedUp = map[string]string{}
 }
 
 // EnvPrefix is the environment namespace for every derived key.

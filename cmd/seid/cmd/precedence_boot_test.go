@@ -5,6 +5,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"go.opentelemetry.io/otel/sdk/trace"
 
@@ -85,7 +86,7 @@ func TestEachChannelWinsOverTheOneBelowIt(t *testing.T) {
 	t.Run("nothing written takes the baseline", func(t *testing.T) {
 		configtest.Isolate(t)
 		want := baseline(t)
-		ctx := bootWithSeiToml(t, "schema_version = 1\nnode_mode = \"validator\"\n")
+		ctx := bootWithSeiToml(t, "schema_version = 2\nnode_mode = \"validator\"\n")
 
 		if got := ctx.Viper.Get(declaredProbeKey); !sameSetting(got, want) {
 			t.Errorf("%s reads %#v with nothing written, want the baseline %#v", declaredProbeKey, got, want)
@@ -94,7 +95,7 @@ func TestEachChannelWinsOverTheOneBelowIt(t *testing.T) {
 
 	t.Run("the file beats the baseline", func(t *testing.T) {
 		configtest.Isolate(t)
-		ctx := bootWithSeiToml(t, "schema_version = 1\nnode_mode = \"validator\"\n\n[evm]\nmax_tx_pool_txs = 111\n")
+		ctx := bootWithSeiToml(t, "schema_version = 2\nnode_mode = \"validator\"\n\n[evm]\nmax_tx_pool_txs = 111\n")
 
 		if got := ctx.Viper.Get(declaredProbeKey); !sameSetting(got, int64(111)) {
 			t.Errorf("%s reads %#v with 111 written in sei.toml, want 111. A file layer that is not "+
@@ -108,7 +109,7 @@ func TestEachChannelWinsOverTheOneBelowIt(t *testing.T) {
 		// The registry's own spelling, which pins the prefix rather than deriving it from the running
 		// binary's name. The legacy path derives it, so the two differ for any binary not called seid.
 		t.Setenv(registry.EnvName(declaredProbeKey), "222")
-		ctx := bootWithSeiToml(t, "schema_version = 1\nnode_mode = \"validator\"\n\n[evm]\nmax_tx_pool_txs = 111\n")
+		ctx := bootWithSeiToml(t, "schema_version = 2\nnode_mode = \"validator\"\n\n[evm]\nmax_tx_pool_txs = 111\n")
 
 		if got := ctx.Viper.Get(declaredProbeKey); !sameSetting(got, "222") {
 			t.Errorf("%s reads %#v with 111 in sei.toml and 222 in the environment, want 222. An "+
@@ -216,7 +217,7 @@ func TestAppTomlDoesNotReachTheFlagLayer(t *testing.T) {
 	if err := os.MkdirAll(filepath.Join(home.Root, "config"), 0o750); err != nil {
 		t.Fatalf("mkdir: %v", err)
 	}
-	body := "schema_version = 1\nnode_mode = \"validator\"\n\n[state-sync]\nsnapshot-keep-recent = 111\n"
+	body := "schema_version = 2\nnode_mode = \"validator\"\n\n[state-sync]\nsnapshot-keep-recent = 111\n"
 	if err := os.WriteFile(filepath.Join(home.Root, "config", "sei.toml"), []byte(body), 0o600); err != nil {
 		t.Fatalf("write sei.toml: %v", err)
 	}
@@ -242,7 +243,7 @@ func TestAppTomlDoesNotReachTheFlagLayer(t *testing.T) {
 // A key with no section goes above every table. Once a table heading is open, every bare key after it
 // belongs to that table, so a node-wide setting written after one would be read under the wrong name.
 func seiTomlWriting(key, value string) string {
-	const header = "schema_version = 1\nnode_mode = \"validator\"\n"
+	const header = "schema_version = 2\nnode_mode = \"validator\"\n"
 	if section, leaf, ok := strings.Cut(key, "."); ok {
 		return header + "\n[" + section + "]\n" + leaf + " = " + value + "\n"
 	}
@@ -262,15 +263,36 @@ func valuesFor(t *testing.T, key string) (inFile, inEnv, onCommandLine, want str
 		t.Fatalf("%q is not a flag on the start command, so this subtest should not have been built", key)
 	}
 
+	// Values of the key's declared type, not merely of the flag's. A duration is carried by a string
+	// flag, which accepts 111 happily and then fails the decode that reads it as a duration, so a probe
+	// chosen from the flag alone tests a value no operator could cause to arrive.
 	inFile, inEnv, onCommandLine = "111", "222", "333"
-	if f.Value.Type() == "bool" {
+	switch {
+	case f.Value.Type() == "bool":
 		inFile, inEnv, onCommandLine = "false", "false", "true"
+	case declaredAsDuration(t, key):
+		inFile, inEnv, onCommandLine = "1s", "2s", "3s"
 	}
 	if err := f.Value.Set(onCommandLine); err != nil {
 		t.Fatalf("the flag for %q refuses %q, so this subtest needs a value of its type: %v",
 			key, onCommandLine, err)
 	}
 	return inFile, inEnv, onCommandLine, f.Value.String()
+}
+
+// declaredAsDuration reports whether the registry resolves this key as a duration.
+func declaredAsDuration(t *testing.T, key string) bool {
+	t.Helper()
+	resolved, err := registry.Resolve(registry.ModeValidator)
+	if err != nil {
+		t.Fatalf("Resolve: %v", err)
+	}
+	res, ok := resolved.Keys[key]
+	if !ok {
+		return false
+	}
+	_, isDuration := res.Value.(time.Duration)
+	return isDuration
 }
 
 // TestANodeStartsDespiteAVariableTheEnvironmentCannotDeliver is the divergence this manager takes on.
@@ -293,7 +315,7 @@ func TestANodeStartsDespiteAVariableTheEnvironmentCannotDeliver(t *testing.T) {
 	for _, key := range refused {
 		t.Setenv(registry.EnvName(key), "not-a-value-this-reader-takes")
 	}
-	ctx := bootWithSeiToml(t, "schema_version = 1\nnode_mode = \"validator\"\n")
+	ctx := bootWithSeiToml(t, "schema_version = 2\nnode_mode = \"validator\"\n")
 
 	for _, key := range refused {
 		got := ctx.Viper.Get(key)
@@ -326,6 +348,7 @@ func TestAnUpgradedFileReachesTheReaderItWasMigratedFor(t *testing.T) {
 
 	// A file from a release that used the old spelling, with automatic mode off so the written mode is the
 	// one the node runs rather than being overridden.
+	// Starts at the version before the shipped migration, because upgrading it is the subject.
 	body := "schema_version = 1\nnode_mode = \"validator\"\n\n[state-commit]\n" +
 		"sc-write-mode = \"cosmos_only\"\nsc-write-mode-enable-auto = false\n"
 	if err := os.WriteFile(path, []byte(body), 0o600); err != nil {

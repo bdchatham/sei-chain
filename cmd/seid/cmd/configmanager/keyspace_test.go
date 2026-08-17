@@ -8,8 +8,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/sei-protocol/sei-chain/config/registry"
 	"github.com/sei-protocol/sei-chain/config/keyspace"
+	"github.com/sei-protocol/sei-chain/config/registry"
 	"github.com/sei-protocol/sei-chain/sei-cosmos/client/flags"
 	"github.com/sei-protocol/sei-chain/sei-cosmos/server"
 	serverconfig "github.com/sei-protocol/sei-chain/sei-cosmos/server/config"
@@ -24,10 +24,10 @@ import (
 // resolve through the machinery that answered them before. Nothing else in this package would notice,
 // because an undeclared key is delegated by design.
 func TestTheBootSeesEverySectionThisBinaryDeclares(t *testing.T) {
-	if missing := keyspace.Missing(); len(missing) > 0 {
-		t.Fatalf("these sections are absent from this test binary: %s\n\nTheir values are not installed "+
-			"into a booting node and the delegation that covers them is silent by design",
-			strings.Join(missing, ", "))
+	if drift := keyspace.Drift(); len(drift) > 0 {
+		t.Fatalf("the key space this test binary registers is not the one config/keyspace names:\n  %s"+
+			"\n\nA section missing here has its values never installed into a booting node, and the "+
+			"delegation that covers them is silent by design", strings.Join(drift, "\n  "))
 	}
 }
 
@@ -41,7 +41,7 @@ func TestTheBootSaysWhichChannelSuppliedAValue(t *testing.T) {
 	root := writeMinimalHome(t, "mode = \"full\"\n", "")
 
 	// The file writes one declared key, and the environment takes a second one.
-	seiToml := "schema_version = 1\nnode_mode = \"full\"\n\n[giga_executor]\nenabled = true\n"
+	seiToml := "schema_version = 2\nnode_mode = \"full\"\n\n[giga_executor]\nenabled = true\n"
 	path := filepath.Join(root, "config", seiTomlName)
 	require.NoError(t, os.WriteFile(path, []byte(seiToml), 0o600))
 	t.Setenv(registry.EnvName("receipt-store.rs-backend"), "littidx")

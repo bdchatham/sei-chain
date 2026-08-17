@@ -15,9 +15,7 @@ import (
 	"github.com/sei-protocol/sei-chain/config/seitoml"
 	"github.com/sei-protocol/sei-chain/sei-cosmos/server"
 
-	// Every section this binary declares, so the values installed into a booting node cover the whole
-	// key space. Without this the set is whatever the import graph produced, and a section left out
-	// resolves through the machinery that answered it before with nothing reporting the difference.
+	// Every section this binary declares, so an installed value covers the whole key space.
 	_ "github.com/sei-protocol/sei-chain/config/keyspace"
 )
 
@@ -43,6 +41,7 @@ func installResolved(cmd *cobra.Command, typed map[string]string, log *slog.Logg
 		return
 	}
 	warnOnModeConflict(ctx, mode, log)
+	warnOnSchemaGap(file, log)
 
 	written, err := file.Values()
 	if err != nil {
@@ -78,6 +77,10 @@ func installResolved(cmd *cobra.Command, typed map[string]string, log *slog.Logg
 		return
 	}
 	log.Info("resolved configuration installed", "mode", mode, "summary", report.Summary())
+
+	// A second delivery, for the sections nothing looks up. Installing reaches a reader that asks the
+	// options for a key; config.toml was read into a struct before any of this ran.
+	deliverDecodedSections(ctx, resolved, log)
 	reportWhichChannelWon(resolved, log)
 }
 
@@ -152,6 +155,36 @@ func usableMode(file *seitoml.File, log *slog.Logger) (string, bool) {
 	log.Warn("sei.toml records a node mode this binary does not know; every key reads as it always has",
 		"mode", mode, "known", registry.Modes())
 	return "", false
+}
+
+// warnOnSchemaGap says so when the file and this binary disagree about the schema.
+//
+// A warning in both directions and a refusal in neither. A file behind this binary is waiting for a
+// migration and the node runs correctly until it is run, so refusing would turn maintenance into an
+// outage. A file ahead of it was written by a newer seid and holds keys under a schema this binary does
+// not have, which is worth saying loudly and is still not worth refusing a boot over: the node came up
+// on the older binary a moment ago and stopping it now removes the operator's way back.
+//
+// doctor is where the second case halts, so a deploy can gate on it before a restart does.
+func warnOnSchemaGap(file *seitoml.File, log *slog.Logger) {
+	version, err := file.Version()
+	if err != nil {
+		return // a file with no readable version is reported by the mode and load paths already
+	}
+	current := seitoml.CurrentVersion()
+	switch {
+	case version > current:
+		log.Warn("sei.toml was written by a newer seid than this one; keys under a schema this binary "+
+			"does not have are read as they always were",
+			"file", version, "binary", current)
+	case version < current:
+		pending, err := seitoml.Pending(version, seitoml.Migrations())
+		if err != nil {
+			return
+		}
+		log.Warn("sei.toml is behind this binary's schema; run seid config upgrade",
+			"file", version, "binary", current, "pending", len(pending))
+	}
 }
 
 // warnOnModeConflict says so when the node's two configuration files disagree about what it is.

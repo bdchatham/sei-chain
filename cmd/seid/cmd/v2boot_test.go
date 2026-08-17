@@ -95,9 +95,9 @@ func TestAMalformedSeiTomlDoesNotStopTheNode(t *testing.T) {
 	const differing = "\n[giga_executor]\nocc_enabled = false\n"
 	for _, tc := range []struct{ name, body string }{
 		{"not toml at all", "this is not = = toml"},
-		{"no node mode", "schema_version = 1\n" + differing},
-		{"a mode no release produced", "schema_version = 1\nnode_mode = \"archival\"\n" + differing},
-		{"an empty mode", "schema_version = 1\nnode_mode = \"\"\n" + differing},
+		{"no node mode", "schema_version = 2\n" + differing},
+		{"a mode no release produced", "schema_version = 2\nnode_mode = \"archival\"\n" + differing},
+		{"an empty mode", "schema_version = 2\nnode_mode = \"\"\n" + differing},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			home := configtest.NewHome(t)
@@ -137,7 +137,7 @@ func TestASeiTomlWithAUsableModeIsInstalled(t *testing.T) {
 	// differs from every baseline. Without that difference the install is unobservable: the one
 	// registered section runs the same defaults a node already runs, which is deliberate and makes it
 	// useless for telling an install from a no-op.
-	file, err := configcli.Generate("archive")
+	file, err := configcli.Generate("archive", "probe-node")
 	if err != nil {
 		t.Fatalf("Generate: %v", err)
 	}

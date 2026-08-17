@@ -120,9 +120,30 @@ var readByTheServerConfigReader = map[string]string{
 	"grpc": "read only by the upstream server configuration reader at start time. " +
 		"TestTheGRPCSchemaDescribesTheReaderItStandsInFor writes a value under each and confirms which " +
 		"setting changes",
+	"grpc-web": "read only by the upstream server configuration reader at start time; the proxy it " +
+		"configures is started there and never reached by the application's creation. " +
+		"TestTheGRPCWebSchemaDescribesTheReaderItStandsInFor writes a value under each and confirms " +
+		"which setting changes",
+	"rosetta": "read only by the upstream server configuration reader at start time, the same way. " +
+		"TestTheRosettaSchemaDescribesTheReaderItStandsInFor writes a value under each and confirms " +
+		"which setting changes",
 	"telemetry": "read only by the upstream server configuration reader at start time. " +
 		"TestTheTelemetrySchemaDescribesTheReaderItStandsInFor writes a value under each and confirms " +
 		"which setting changes",
+}
+
+// readByOneOfTheSectionsOtherReaders are declared keys read by something other than the application's
+// creation, where the rest of their section is not.
+//
+// Distinct from readByTheServerConfigReader, which exempts a whole section because every one of its keys
+// is read at start time. This is for a table two readers share and split: exempting the section would
+// take the keys the application does read out of the check as well, which is most of the coverage that
+// section has.
+var readByOneOfTheSectionsOtherReaders = map[string]string{
+	"genesis.genesis-stream-file": "srvconfig.GetConfig reads it and sei-cosmos/server/start.go streams " +
+		"the genesis file it names. The other two keys of that table are read by the application's " +
+		"creation, so the section cannot be exempted whole. " +
+		"TestTheDerivedGenesisKeysAreTheKeysItsTwoReadersResolve holds the table against both readers",
 }
 
 // TestEveryDeclaredKeyIsReadBySomething closes the direction the read census cannot.
@@ -140,7 +161,13 @@ func TestEveryDeclaredKeyIsReadBySomething(t *testing.T) {
 		observed[key] = true
 	}
 	for _, section := range registry.Sections() {
-		if _, named := readByTheServerConfigReader[section.Name]; !named {
+		// A section the upstream reader covers, named with what proves its keys are read.
+		_, named := readByTheServerConfigReader[section.Name]
+		// Or one read by a decode rather than a lookup. This census records lookups, so those keys have
+		// none to record, and the declaration is itself the reason: a section that reaches its reader by
+		// being decoded into a struct is delivered by deliverDecodedSections and covered by the schema
+		// check that writes a value under each key and asks the struct which field moved.
+		if !named && !registry.DecodedNotLookedUp(section.Name) {
 			continue
 		}
 		for _, key := range section.Keys {
@@ -151,6 +178,9 @@ func TestEveryDeclaredKeyIsReadBySomething(t *testing.T) {
 	var unread []string
 	for _, key := range declared {
 		if observed[key] {
+			continue
+		}
+		if _, elsewhere := readByOneOfTheSectionsOtherReaders[key]; elsewhere {
 			continue
 		}
 		unread = append(unread, key)

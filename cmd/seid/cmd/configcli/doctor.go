@@ -42,7 +42,34 @@ type Diagnosis struct {
 	// IgnoredVariables are environment variables set for a key the environment cannot deliver, sorted by
 	// key. Each warns: the variable does nothing, and an operator who set it believes otherwise.
 	IgnoredVariables []Override
+	// Schema is how the file's schema version compares with this binary's.
+	Schema SchemaState
 }
+
+// SchemaState is what the file's schema version says about this binary.
+//
+// Two directions, and they need different answers because only one of them can be fixed here. A file
+// behind the binary is waiting for a migration, and upgrade runs it. A file ahead of the binary was
+// written by a newer seid, and no upgrade helps: its keys follow a schema this binary does not have, so
+// the ones it does not recognize are read by whatever answered them before.
+type SchemaState struct {
+	// File is the version the file claims, and 0 when it records none this binary can read.
+	File int
+	// Binary is the version this binary's migration chain produces.
+	Binary int
+	// Pending is how many migrations the file still needs, and 0 when it is current or ahead.
+	Pending int
+}
+
+// Behind reports whether a migration is waiting to run.
+func (s SchemaState) Behind() bool { return s.Pending > 0 }
+
+// Ahead reports whether the file was written by a newer binary than this one.
+//
+// This halts where Behind only warns. A node in this state runs a file whose unrecognized keys are read
+// by the machinery the registry replaced, which is a configuration nobody wrote, and running upgrade
+// cannot move a file backwards.
+func (s SchemaState) Ahead() bool { return s.File > s.Binary }
 
 // Override is one written key the environment answers instead of the file.
 type Override struct {
@@ -69,9 +96,38 @@ type Malformation struct {
 }
 
 // Healthy reports whether the file may be booted from.
-func (d Diagnosis) Healthy() bool {
-	return len(d.Unrecognized) == 0 && len(d.Malformed) == 0 && len(d.Refused) == 0 &&
-		d.ModeProblem == "" && d.ModeConflict == ""
+func (d Diagnosis) Healthy() bool { return d.WhyUnhealthy() == "" }
+
+// WhyUnhealthy names the finding that stops this file being booted from, and is empty when none does.
+//
+// One statement of what unhealthy means, rather than one in Healthy and another wherever an exit is
+// explained. Those drift in a particular way: the exit says whichever category was listed first while
+// the real finding is a different one, so an operator reads "0 written setting(s) are not recognized"
+// and a non-zero status at the same time.
+//
+// Ordered most fundamental first. A file recording no usable mode cannot be resolved for any mode, so
+// nothing below was checked against anything and naming a later finding would be naming a guess.
+//
+// A category added to the halting set needs a case here. Forgetting one makes the file report healthy,
+// which fails a test rather than printing the wrong reason.
+func (d Diagnosis) WhyUnhealthy() string {
+	switch {
+	case d.ModeProblem != "":
+		return "sei.toml does not record a usable node mode"
+	case d.Schema.Ahead():
+		return fmt.Sprintf("sei.toml is at schema version %d and this binary knows %d; it was written "+
+			"by a newer seid and no upgrade moves a file backwards", d.Schema.File, d.Schema.Binary)
+	case d.ModeConflict != "":
+		return "sei.toml and config.toml disagree about what kind of node this is"
+	case len(d.Unrecognized) > 0:
+		return fmt.Sprintf("%d written setting(s) are not recognized by this binary", len(d.Unrecognized))
+	case len(d.Malformed) > 0:
+		return fmt.Sprintf("%d written value(s) cannot be read as the setting's declared type",
+			len(d.Malformed))
+	case len(d.Refused) > 0:
+		return fmt.Sprintf("%d section(s) refused the values that resolve for them", len(d.Refused))
+	}
+	return ""
 }
 
 // Doctor checks every written key against what this binary declares.
@@ -111,6 +167,7 @@ func Doctor(file *seitoml.File, tendermintMode string) (Diagnosis, error) {
 	live, retired := experimentalNames()
 
 	var d Diagnosis
+	d.Schema = schemaState(file)
 	d.Mode, d.ModeProblem = diagnoseMode(file)
 	// Compared only when both sides are known. An unreadable config.toml is not evidence about
 	// sei.toml, and a mode this binary cannot use has already been reported on its own terms.
@@ -227,6 +284,24 @@ func environmentOverrides(resolved registry.Resolved, written map[string]any) []
 	return out
 }
 
+// schemaState compares the version the file claims with the one this binary produces.
+//
+// A file whose version cannot be read reports zero, which is neither behind nor ahead. That case has a
+// report of its own already: a file this unreadable fails to load before reaching here, and one that
+// loads with no version is a file no release produced.
+func schemaState(file *seitoml.File) SchemaState {
+	state := SchemaState{Binary: seitoml.CurrentVersion()}
+	version, err := file.Version()
+	if err != nil {
+		return state
+	}
+	state.File = version
+	if pending, err := seitoml.Pending(version, seitoml.Migrations()); err == nil {
+		state.Pending = len(pending)
+	}
+	return state
+}
+
 // diagnoseMode reads the recorded node mode and says what is wrong with it, if anything.
 //
 // A mode this binary does not know makes every other answer meaningless: nothing can resolve the
@@ -268,6 +343,17 @@ func experimentalNames() (live, retired map[string]bool) {
 // Report renders a diagnosis for an operator, most severe first.
 func (d Diagnosis) Report() string {
 	var b strings.Builder
+	switch {
+	case d.Schema.Ahead():
+		b.WriteString(fmt.Sprintf("this file is at schema version %d and this binary knows %d. It was "+
+			"written by a newer seid, so keys it holds under a schema this binary does not have are "+
+			"read by whatever answered them before. Run the newer binary, or regenerate this file.\n",
+			d.Schema.File, d.Schema.Binary))
+	case d.Schema.Behind():
+		b.WriteString(fmt.Sprintf("this file is at schema version %d and this binary knows %d. %d "+
+			"migration(s) are pending; run seid config upgrade. The node runs correctly until then.\n",
+			d.Schema.File, d.Schema.Binary, d.Schema.Pending))
+	}
 	if d.ModeProblem != "" {
 		b.WriteString("the node mode this file records is unusable: " + d.ModeProblem + "\n" +
 			"Nothing can resolve the defaults its values were chosen against until that is fixed.\n")

@@ -1,0 +1,11 @@
+# Keys these configuration files carry that no section declares. Regenerate with
+# -update.
+#
+# A migration builds sei.toml from the declared keys, so every line here is a value
+# these files hold that the migration reads past. What that means depends on which
+# files were read, and the test that names this record says which.
+#
+# Read through the same source the migration reads, so this measures what that
+# migration would actually see rather than what a struct's tags suggest.
+
+(none: every key these files carry has a section that owns it)

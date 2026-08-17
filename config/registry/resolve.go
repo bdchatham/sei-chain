@@ -205,11 +205,11 @@ func walkValues(v reflect.Value, prefix string, out map[string]any) error {
 		if !f.IsExported() {
 			continue
 		}
-		tag, squash, skip, err := tagOf(f, prefix)
+		tag, err := tagOf(f, prefix)
 		if err != nil {
 			return err
 		}
-		if skip {
+		if tag.DeclaresNoKey() || tag.Remains() {
 			continue
 		}
 
@@ -227,13 +227,13 @@ func walkValues(v reflect.Value, prefix string, out map[string]any) error {
 			continue
 		}
 
-		if squash {
+		if tag.Squashed() {
 			if err := walkValues(fv, prefix, out); err != nil {
 				return err
 			}
 			continue
 		}
-		path := join(prefix, tag)
+		path := join(prefix, tag.Segment())
 		if fv.Kind() == reflect.Struct && !isLeaf(fv.Type()) {
 			if err := walkValues(fv, path, out); err != nil {
 				return err

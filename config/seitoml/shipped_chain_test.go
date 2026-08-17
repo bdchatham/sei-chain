@@ -166,3 +166,65 @@ func TestAPreviewOfTheShippedChainWritesNothing(t *testing.T) {
 		t.Errorf("the preview changed the file:\n\n%s", after)
 	}
 }
+
+// TestUpgradeKeepsTheFileItIsAboutToChange is the whole downgrade story.
+//
+// There is no reverse chain and there cannot be a general one, so rolling a node back to a binary that
+// predates a migration means putting the file back the way it was. A copy per step is what makes that a
+// file copy rather than a procedure, and per step rather than per run because a rollback picks a binary
+// version, not a run.
+func TestUpgradeKeepsTheFileItIsAboutToChange(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "sei.toml")
+	const body = `schema_version = 1
+node_mode = "full"
+
+[state-commit]
+# Pinned to the old routing during the March migration. Ask before changing.
+sc-write-mode = "cosmos_only"
+`
+	if err := os.WriteFile(path, []byte(body), 0o600); err != nil {
+		t.Fatalf("write the fixture: %v", err)
+	}
+
+	if _, err := seitoml.Upgrade(path, seitoml.Migrations(), false, "seid v6.6.0"); err != nil {
+		t.Fatalf("upgrade: %v", err)
+	}
+
+	kept, err := os.ReadFile(seitoml.KeptCopyPath(path, 1)) // #nosec G304 -- a path this test derived
+	if err != nil {
+		t.Fatalf("the upgrade kept no copy of the file it changed, so a node rolled back to a binary "+
+			"that predates this migration has nothing to put back: %v", err)
+	}
+	if string(kept) != body {
+		t.Errorf("the kept copy is not the file as it stood.\n\ngot:\n%s\nwant:\n%s", kept, body)
+	}
+	// And the file the node reads moved on, or the copy is of a file that never changed.
+	moved, err := os.ReadFile(path) // #nosec G304 -- a path this test wrote
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(moved), "memiavl_only") {
+		t.Errorf("the upgrade kept a copy and did not migrate:\n%s", moved)
+	}
+}
+
+// TestAPreviewKeepsNoCopy holds the preview's one promise.
+//
+// A preview that wrote a copy would leave a file on disk for a migration that did not run, and the next
+// real upgrade would replace it with the same contents. Harmless, and still a write from a command whose
+// whole point is that it does not write.
+func TestAPreviewKeepsNoCopy(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "sei.toml")
+	body := "schema_version = 1\nnode_mode = \"full\"\n\n[state-commit]\nsc-write-mode = \"cosmos_only\"\n"
+	if err := os.WriteFile(path, []byte(body), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	if _, err := seitoml.Upgrade(path, seitoml.Migrations(), true, "seid v6.6.0"); err != nil {
+		t.Fatalf("preview: %v", err)
+	}
+
+	if _, err := os.Stat(seitoml.KeptCopyPath(path, 1)); err == nil {
+		t.Error("a preview kept a copy, so a command that writes nothing wrote something")
+	}
+}

@@ -2,6 +2,7 @@ package registry_test
 
 import (
 	"fmt"
+	"runtime"
 	"strings"
 	"testing"
 
@@ -965,5 +966,196 @@ func TestRefusingAChannelWithoutAReasonIsItselfRefused(t *testing.T) {
 	registry.RefuseFromEnvironment("probe.rows", "its reader takes the exact type")
 	if _, refused := registry.EnvCannotDeliver()["probe.rows"]; !refused {
 		t.Error("a refusal carrying a reason was not recorded")
+	}
+}
+
+// SquashedBase stands for the embedded base the upstream configuration types carry.
+type SquashedBase struct {
+	Alpha string `mapstructure:"alpha"`
+}
+
+// TestASquashedFieldPromotesItsKeysToTheEnclosingLevel covers the path the upstream types need.
+//
+// Both sei-cosmos/server/config.Config and sei-tendermint/config.Config embed a BaseConfig tagged
+// ",squash", so a section registering either declares that base's keys at its own level rather than
+// under a segment named for the type. No section registers one of those types yet, which is why this
+// drives the path directly: otherwise squash could stop working and nothing would report it until
+// somebody wrote the section that needs it, and what they would see is a key space missing its
+// node-wide settings.
+//
+// The resolved values are asserted alongside the keys, because deriving the key and reading the value
+// walk the struct separately. A squash honoured by one and not the other declares a key whose baseline
+// resolves to nothing.
+func TestASquashedFieldPromotesItsKeysToTheEnclosingLevel(t *testing.T) {
+	registry.Reset()
+	type section struct {
+		SquashedBase `mapstructure:",squash"`
+		Bravo        int `mapstructure:"bravo"`
+	}
+	registry.RegisterSection("probe", &section{}, func(registry.Mode) any {
+		return section{SquashedBase: SquashedBase{Alpha: "a"}, Bravo: 7}
+	})
+
+	for _, d := range registry.Defects() {
+		t.Fatalf("a section with a squashed base was refused: %v.\n\nThe section does not register at "+
+			"all, so every key it declares silently reads from the legacy path instead", d.Err)
+	}
+	s, ok := registry.Lookup("probe")
+	if !ok {
+		t.Fatal("the section did not register")
+	}
+	if got := strings.Join(s.Keys, ","); got != "probe.alpha,probe.bravo" {
+		t.Errorf("derived %q, want probe.alpha,probe.bravo. A squashed base whose keys gain a segment "+
+			"of their own declares keys no operator's file holds", got)
+	}
+
+	resolved, err := registry.Resolve(registry.ModeFull)
+	if err != nil {
+		t.Fatalf("Resolve: %v", err)
+	}
+	for key, want := range map[string]any{"probe.alpha": "a", "probe.bravo": 7} {
+		got, found := resolved.Keys[key]
+		if !found {
+			t.Errorf("%s resolves to nothing, so its baseline is missing while its key is declared", key)
+			continue
+		}
+		if got.Value != want {
+			t.Errorf("%s resolves to %#v, want %#v", key, got.Value, want)
+		}
+	}
+}
+
+// TestNoHostDerivedBaselineReachesTheSurface is what makes the record reproduce on another machine.
+//
+// A recorded baseline read off the recording host fails everywhere else, and the failure names a value
+// nobody changed. This holds the substitution that prevents it: every key declared host-derived renders
+// as the marker, so the record carries the fact that the key has such a value and never the value.
+//
+// Held over the rendered text rather than over renderBaseline, because the surface is what is recorded
+// and a substitution that worked in isolation and was not reached would leave the record host-dependent.
+func TestNoHostDerivedBaselineReachesTheSurface(t *testing.T) {
+	registry.Reset()
+	registry.RegisterSection("probe", &struct {
+		Sized int `mapstructure:"sized"`
+		Fixed int `mapstructure:"fixed"`
+	}{}, func(registry.Mode) any {
+		return struct {
+			Sized int `mapstructure:"sized"`
+			Fixed int `mapstructure:"fixed"`
+		}{Sized: runtime.NumCPU(), Fixed: 7}
+	})
+	registry.DeclareHostDerived("probe", "probe.sized", "the host's processor count")
+	for _, d := range registry.Defects() {
+		t.Fatalf("registering the probe section produced a defect: %v", d.Err)
+	}
+	t.Cleanup(registry.Reset)
+
+	surface := registry.Surface()
+	for _, mode := range registry.Modes() {
+		line := "default:probe:" + string(mode) + ":probe.sized:"
+		if !strings.Contains(surface, line+"<derived from the host>") {
+			t.Errorf("the surface records probe.sized for %q mode as something other than the marker. "+
+				"A processor count in this record fails on every host that has a different one:\n%s",
+				mode, surface)
+		}
+	}
+	// The key beside it still records its value, or the substitution is covering everything and the
+	// record has stopped saying what a default is.
+	if !strings.Contains(surface, "probe.fixed:7") {
+		t.Errorf("a key that is not host-derived no longer records its value:\n%s", surface)
+	}
+}
+
+// TestAHostDerivedDeclarationNeedsItsReason keeps the list from filling with guesses.
+func TestAHostDerivedDeclarationNeedsItsReason(t *testing.T) {
+	registry.Reset()
+	t.Cleanup(registry.Reset)
+	registry.DeclareHostDerived("probe", "probe.sized", "")
+
+	if len(registry.Defects()) == 0 {
+		t.Error("a host-derived declaration with no reason was accepted. Without one it cannot be told " +
+			"from a key somebody guessed about, and the record stops holding its value on that guess")
+	}
+	if registry.HostDerived("probe.sized") {
+		t.Error("the refused declaration took effect anyway, so the key's value is suppressed from the " +
+			"record on a declaration the registry rejected")
+	}
+}
+
+// TestAnExclusionMustCoverAFieldTheStructProduces keeps a stale exclusion from reading as a live one.
+//
+// An exclusion names a key the operator must not be given. Once the field it named is gone or renamed,
+// the exclusion covers nothing and the next field to need one looks as though it already has it.
+func TestAnExclusionMustCoverAFieldTheStructProduces(t *testing.T) {
+	registry.Reset()
+	t.Cleanup(registry.Reset)
+	registry.RegisterSectionExcluding("probe", &struct {
+		Alpha string `mapstructure:"alpha"`
+		Bravo string `mapstructure:"bravo"`
+	}{}, func(registry.Mode) any {
+		return struct {
+			Alpha string `mapstructure:"alpha"`
+			Bravo string `mapstructure:"bravo"`
+		}{}
+	}, map[string]string{"probe.charlie": "a field this struct does not have"})
+
+	if len(registry.Defects()) == 0 {
+		t.Error("an exclusion naming a key the struct does not produce was accepted, so it covers " +
+			"nothing while reading as though it covers something")
+	}
+}
+
+// TestAnExclusionNeedsItsReason holds the same bar the other declarations hold.
+func TestAnExclusionNeedsItsReason(t *testing.T) {
+	registry.Reset()
+	t.Cleanup(registry.Reset)
+	registry.RegisterSectionExcluding("probe", &struct {
+		Alpha string `mapstructure:"alpha"`
+		Bravo string `mapstructure:"bravo"`
+	}{}, func(registry.Mode) any {
+		return struct {
+			Alpha string `mapstructure:"alpha"`
+			Bravo string `mapstructure:"bravo"`
+		}{}
+	}, map[string]string{"probe.bravo": ""})
+
+	if len(registry.Defects()) == 0 {
+		t.Error("an exclusion with no reason was accepted; without one it cannot be told from a key " +
+			"somebody found inconvenient")
+	}
+}
+
+// TestAnExcludedKeyIsAbsentFromTheSection is the property the exclusion exists for.
+func TestAnExcludedKeyIsAbsentFromTheSection(t *testing.T) {
+	registry.Reset()
+	t.Cleanup(registry.Reset)
+	registry.RegisterSectionExcluding("probe", &struct {
+		Alpha string `mapstructure:"alpha"`
+		Bravo string `mapstructure:"bravo"`
+	}{}, func(registry.Mode) any {
+		return struct {
+			Alpha string `mapstructure:"alpha"`
+			Bravo string `mapstructure:"bravo"`
+		}{Alpha: "a", Bravo: "b"}
+	}, map[string]string{"probe.bravo": "not something an operator writes"})
+
+	for _, d := range registry.Defects() {
+		t.Fatalf("the registration was refused: %v", d.Err)
+	}
+	section, ok := registry.Lookup("probe")
+	if !ok {
+		t.Fatal("the section did not register")
+	}
+	if strings.Join(section.Keys, ",") != "probe.alpha" {
+		t.Errorf("the section declares %v, want only probe.alpha. An excluded key that is still declared "+
+			"reaches an operator's file and is delivered from it", section.Keys)
+	}
+	// The kept key still resolves, or the exclusion has taken the section with it.
+	resolved, err := registry.Resolve(registry.ModeFull)
+	if err != nil {
+		t.Fatalf("Resolve: %v", err)
+	}
+	if got, found := resolved.Keys["probe.alpha"]; !found || got.Value != "a" {
+		t.Errorf("probe.alpha resolves to %#v (found=%v), want a", got.Value, found)
 	}
 }

@@ -46,6 +46,24 @@ above a bound flag: without it the operator's flag is buried. And the set of fla
 operator actually typed can only be read before the legacy handler runs, since that
 handler copies configuration values into flags and marks them changed.
 
+A section is delivered one of two ways, and it declares which. Almost all of them are read
+by a lookup, so installing the resolved value into the boot's source is the whole delivery.
+The sections `config.toml` owns are not: that file is decoded into a struct once, before the
+application is built, and nothing looks a key up afterwards. Those declare
+`DeclareDecodedNotLookedUp` and are delivered by decoding the declared keys alone into that
+struct. Decoding the whole source again is not equivalent and does not work, because the
+handler merges `app.toml` into it and copies configuration values into flags as text, so a
+duration written as a bare number decodes on the handler's pass and is refused on a second
+one. The declaration is also why a census of lookups never sees those keys.
+
+A few upstream structs carry a tagged field that is not operator configuration, and
+`RegisterSectionExcluding` is how a section drops one. The root directory is the case: it is
+tagged `home` on five Tendermint sub-structs and filled by `SetRoot` after the file is decoded,
+so declaring it would put an empty root in an operator's file and delivering that would lose
+every path derived from it. Each exclusion carries its reason, and one naming a key the struct
+does not produce is refused, because a stale exclusion reads as though the field it named had
+been dealt with.
+
 ## Code style
 
 All Go files must be both `gofmt`- and `goimports`-compliant (`.golangci.yml`

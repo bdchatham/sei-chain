@@ -186,7 +186,7 @@ func TestGenerateCoversExactlyWhatTheConstructionReadsForAMigratedSection(t *tes
 			"that wrote nothing", section)
 	}
 
-	file, err := configcli.Generate(registry.ModeValidator)
+	file, err := configcli.Generate(registry.ModeValidator, "probe-node")
 	if err != nil {
 		t.Fatalf("Generate: %v", err)
 	}
@@ -291,12 +291,28 @@ func TestEveryDeclaredKeyIsOneTheNodeActuallyReads(t *testing.T) {
 func declaredButUnread(declared []string, observed map[string]bool) []string {
 	var out []string
 	for _, key := range declared {
-		if !observed[key] {
-			out = append(out, key)
+		if observed[key] {
+			continue
 		}
+		if _, elsewhere := readOutsideTheConstruction[key]; elsewhere {
+			continue
+		}
+		out = append(out, key)
 	}
 	sort.Strings(out)
 	return out
+}
+
+// readOutsideTheConstruction are declared keys a reader other than app.New's construction resolves.
+//
+// A section covers a whole table, and a table's keys are not always read by one function. This recording
+// wraps the source the construction is given, so a key resolved before that or beside it never appears in
+// it, and the check above would call it unread. The reason has to name the reader and what consumes the
+// value, because "read somewhere else" with no destination is indistinguishable from a key nothing reads.
+var readOutsideTheConstruction = map[string]string{
+	"genesis.genesis-stream-file": "srvconfig.GetConfig resolves it into Config.Genesis while the boot's " +
+		"handler runs, and sei-cosmos/server/start.go streams the genesis file it names. The construction " +
+		"reads the other two keys of that table and never this one",
 }
 
 // TestTheDeclaredKeyCheckCatchesASpellingItsReadersDoNotResolve makes the guard above falsifiable.
