@@ -2,6 +2,7 @@ package seitoml
 
 import (
 	"fmt"
+	"math"
 	"strconv"
 	"strings"
 	"time"
@@ -144,9 +145,9 @@ func tomlValue(v any) (parser.Value, error) {
 	case uint64:
 		return parser.ParseValue(strconv.FormatUint(x, 10))
 	case float32:
-		return parser.ParseValue(strconv.FormatFloat(float64(x), 'g', -1, 32))
+		return floatValue(float64(x), 32)
 	case float64:
-		return parser.ParseValue(strconv.FormatFloat(x, 'g', -1, 64))
+		return floatValue(x, 64)
 	case []string:
 		return parser.ParseValue("[" + strings.Join(quoteEach(x), ", ") + "]")
 	case []any:
@@ -166,6 +167,27 @@ func tomlValue(v any) (parser.Value, error) {
 	default:
 		return parser.Value{}, fmt.Errorf("cannot write a %T to a configuration file", v)
 	}
+}
+
+// floatValue renders a float as a TOML float, which an integral one is not by default.
+//
+// TOML tells a float from an integer by the fractional part or the exponent, and the shortest form of
+// 1.0 is "1", which reads back as an integer. A key the registry declares as a float then resolves as
+// one type from a node's own files and as another from its sei.toml, and which of the two an operator
+// gets depends on the value they chose: 0.5 survives and 1.0 does not.
+//
+// Infinities and NaN are refused. This parser has no form for them, so the alternative is a line no
+// reader can load, written into an operator's file with nothing said.
+func floatValue(x float64, bits int) (parser.Value, error) {
+	if math.IsInf(x, 0) || math.IsNaN(x) {
+		return parser.Value{}, fmt.Errorf("%v cannot be written to a configuration file, which holds "+
+			"finite numbers", x)
+	}
+	text := strconv.FormatFloat(x, 'g', -1, bits)
+	if !strings.ContainsAny(text, ".eE") {
+		text += ".0"
+	}
+	return parser.ParseValue(text)
 }
 
 // quoteEach quotes every element of a string list.
